@@ -24,11 +24,11 @@ import { NodePanel } from "./panels/NodePanel";
 import { EdgePanel } from "./panels/EdgePanel";
 import { AgentPanel } from "./panels/AgentPanel";
 import { useGraphStore } from "../stores/graphStore";
-import { GraphSchema, type NodeKind } from "../schemas/graph.schema";
+import { GraphSchema } from "../schemas/graph.schema";
 
 function GraphBuilderInner() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition, fitView } = useReactFlow();
+  const { screenToFlowPosition, fitView, getViewport } = useReactFlow();
 
   const rfNodes = useGraphStore((s) => s.rfNodes);
   const rfEdges = useGraphStore((s) => s.rfEdges);
@@ -95,44 +95,48 @@ function GraphBuilderInner() {
     setSelectedEdgeId(null);
   }, [setSelectedNodeId, setSelectedEdgeId]);
 
-  const createNode = useCallback(
-    (kind: NodeKind, position: { x: number; y: number }) => {
-      const id = `node_${nanoid(8)}`;
-      addNode({
-        id,
-        text: "New node",
-        kind,
-        description: "",
-        position,
-      });
-      setSelectedNodeId(id);
-    },
-    [addNode, setSelectedNodeId]
-  );
-
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-  }, []);
-
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-
-      const kind = event.dataTransfer.getData(
-        "application/reactflow-kind"
-      ) as NodeKind;
-      if (!kind) return;
-
-      const position = screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-
-      createNode(kind, position);
-    },
-    [screenToFlowPosition, createNode]
-  );
+  const handleAddNode = useCallback(() => {
+    const id = `node_${nanoid(8)}`;
+    // Place new node at center of current viewport
+    const wrapper = reactFlowWrapper.current;
+    if (!wrapper) {
+      console.log("[handleAddNode] wrapper is null");
+      return;
+    }
+    const rect = wrapper.getBoundingClientRect();
+    console.log("[handleAddNode] wrapper rect:", {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    });
+    const screenCenter = {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height * 0.3,
+    };
+    console.log("[handleAddNode] screen center:", screenCenter);
+    const position = screenToFlowPosition(screenCenter);
+    const viewport = getViewport();
+    console.log("[handleAddNode] current viewport:", viewport);
+    console.log("[handleAddNode] flow position:", position);
+    // Offset by half the node dimensions to center visually
+    // AgentNode is approximately 180px wide x 60px tall
+    const NODE_WIDTH = 180;
+    const NODE_HEIGHT = 60;
+    const centeredPosition = {
+      x: position.x - NODE_WIDTH / 2,
+      y: position.y - NODE_HEIGHT / 2,
+    };
+    console.log("[handleAddNode] centered position:", centeredPosition);
+    addNode({
+      id,
+      text: "New node",
+      kind: "agent",
+      description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+      position: centeredPosition,
+    });
+    setSelectedNodeId(id);
+  }, [addNode, setSelectedNodeId, screenToFlowPosition, getViewport]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement("input");
@@ -180,17 +184,12 @@ function GraphBuilderInner() {
   return (
     <div className="flex h-screen w-screen flex-col">
       {/* Header */}
-      <Toolbar onImport={handleImport} onExport={handleExport} />
+      <Toolbar onAddNode={handleAddNode} onImport={handleImport} onExport={handleExport} />
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Canvas */}
-        <main
-          ref={reactFlowWrapper}
-          className="relative flex-1"
-          onDragOver={onDragOver}
-          onDrop={onDrop}
-        >
+      <div className="relative flex-1 overflow-hidden">
+        {/* Canvas - Full size */}
+        <main ref={reactFlowWrapper} className="absolute inset-0">
           <ReactFlow
             nodes={rfNodes}
             edges={rfEdges}
@@ -211,8 +210,8 @@ function GraphBuilderInner() {
           </ReactFlow>
         </main>
 
-        {/* Right Sidebar */}
-        <aside className="w-80 border-l border-gray-200 bg-gray-50">
+        {/* Right Sidebar - Overlay */}
+        <aside className="absolute right-0 top-0 bottom-0 w-80 border-l border-gray-200 bg-white">
           {selectedNodeId && <NodePanel nodeId={selectedNodeId} />}
           {selectedEdgeId && <EdgePanel edgeId={selectedEdgeId} />}
           {!selectedNodeId && !selectedEdgeId && <AgentPanel />}

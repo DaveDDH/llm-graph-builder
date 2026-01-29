@@ -34,6 +34,7 @@ interface GraphActions {
   // Node operations
   addNode: (node: SchemaNode) => void;
   updateNode: (id: string, updates: Partial<Omit<SchemaNode, "id">>) => void;
+  renameNode: (oldId: string, newId: string) => void;
   deleteNode: (id: string) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
 
@@ -102,6 +103,29 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       return {
         nodes: newNodes,
         rfNodes: newNodes.map(schemaNodeToRFNode),
+      };
+    });
+  },
+
+  renameNode: (oldId, newId) => {
+    set((state) => {
+      // Update node ID
+      const newNodes = state.nodes.map((n) =>
+        n.id === oldId ? { ...n, id: newId } : n
+      );
+      // Update edges referencing this node
+      const newEdges = state.edges.map((e) => ({
+        ...e,
+        from: e.from === oldId ? newId : e.from,
+        to: e.to === oldId ? newId : e.to,
+      }));
+      return {
+        nodes: newNodes,
+        edges: newEdges,
+        rfNodes: newNodes.map(schemaNodeToRFNode),
+        rfEdges: newEdges.map(schemaEdgeToRFEdge),
+        startNode: state.startNode === oldId ? newId : state.startNode,
+        selectedNodeId: state.selectedNodeId === oldId ? newId : state.selectedNodeId,
       };
     });
   },

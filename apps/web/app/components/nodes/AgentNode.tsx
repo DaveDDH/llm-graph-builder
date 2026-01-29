@@ -10,33 +10,32 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
 
   return (
     <div
-      className={`min-w-[180px] max-w-[240px] rounded-lg border-2 border-blue-500 bg-blue-50 p-3 ${
-        selected ? "ring-2 ring-blue-600 ring-offset-2" : ""
+      className={`min-w-[180px] max-w-[240px] rounded-lg border bg-white p-3 ${
+        selected ? "border-primary" : "border-secondary"
       }`}
     >
       <Handle
         type="target"
         position={Position.Top}
-        className="!h-3 !w-3 !bg-blue-500"
+        className={`!h-3 !w-3 ${selected ? "!bg-primary" : "!bg-secondary"}`}
       />
-
-      <div className="mb-1 flex items-center gap-2">
-        <Bot className="h-4 w-4 text-blue-600" />
-        <span className="text-xs font-medium text-blue-600">
-          {nodeData.agent ?? "Agent"}
-        </span>
-        {nodeData.nextNodeIsUser && (
-          <User className="ml-auto h-3 w-3 text-blue-400" />
-        )}
-      </div>
-
-      <p className="line-clamp-2 text-sm text-gray-800">{nodeData.text}</p>
-
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!h-3 !w-3 !bg-blue-500"
+        className={`!h-3 !w-3 ${selected ? "!bg-primary" : "!bg-secondary"}`}
       />
+
+      <div className="mb-1 flex items-center gap-2">
+        <Bot className="h-4 w-4 text-black" />
+        <span className="text-xs font-medium text-black">
+          {nodeData.agent ?? "Agent"}
+        </span>
+        {nodeData.nextNodeIsUser && (
+          <User className="ml-auto h-3 w-3 text-black/60" />
+        )}
+      </div>
+
+      <p className="line-clamp-2 text-sm text-foreground">{nodeData.text}</p>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Trash2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,8 @@ export function EdgePanel({ edgeId }: EdgePanelProps) {
   const [from, to] = edgeId.split("-");
   const edge = edges.find((e) => e.from === from && e.to === to);
 
-  const [preconditions, setPreconditions] = useState<Precondition[]>([]);
+  const [prevEdgeId, setPrevEdgeId] = useState(edgeId);
+  const [preconditions, setPreconditions] = useState<Precondition[]>(edge?.preconditions ?? []);
   const [isAddingPrecondition, setIsAddingPrecondition] = useState(false);
   const [newPreconditionType, setNewPreconditionType] =
     useState<PreconditionType>("user_said");
@@ -37,11 +38,14 @@ export function EdgePanel({ edgeId }: EdgePanelProps) {
   const [newPreconditionDescription, setNewPreconditionDescription] =
     useState("");
 
-  useEffect(() => {
-    if (edge) {
-      setPreconditions(edge.preconditions ?? []);
+  // Reset form when selecting a different edge (React recommended pattern)
+  if (edgeId !== prevEdgeId) {
+    setPrevEdgeId(edgeId);
+    const currentEdge = edges.find((e) => e.from === from && e.to === to);
+    if (currentEdge) {
+      setPreconditions(currentEdge.preconditions ?? []);
     }
-  }, [edge]);
+  }
 
   if (!edge) {
     return <div className="p-4 text-muted-foreground">Edge not found</div>;
