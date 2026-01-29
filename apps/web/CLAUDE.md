@@ -39,3 +39,7 @@
 - Zod schemas are defined in `app/schemas/graph.schema.ts`
 - Node types: `agent`, `agent_decision`
 - All preconditions in an edge must have the same type
+
+### Good practices
+
+- **Important**: Never use "!important" in CSS, and do not use it in tailwind.

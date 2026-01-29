@@ -21,3 +21,7 @@
 ### Internationalization
 
 - Never forget to add translations when adding user-facing text
+
+### Good practices
+
+- **Important**: Never use "!important" in CSS, and do not use it in tailwind.

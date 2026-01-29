@@ -1,4 +1,4 @@
-import type { Node as RFNode, Edge as RFEdge } from "@xyflow/react";
+import { Position, type Node as RFNode, type Edge as RFEdge } from "@xyflow/react";
 import type {
   Node as SchemaNode,
   Edge as SchemaEdge,
@@ -23,6 +23,8 @@ export function schemaNodeToRFNode(node: SchemaNode): RFNode<RFNodeData> {
     id: node.id,
     type: node.kind,
     position: node.position,
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
     data: {
       text: node.text,
       description: node.description,

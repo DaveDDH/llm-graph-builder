@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -8,9 +8,12 @@ import {
   MiniMap,
   useReactFlow,
   ReactFlowProvider,
+  useStoreApi,
   type Connection,
   type OnNodesChange,
   type OnEdgesChange,
+  type Node,
+  type Edge,
   applyNodeChanges,
   applyEdgeChanges,
 } from "@xyflow/react";
@@ -26,9 +29,13 @@ import { AgentPanel } from "./panels/AgentPanel";
 import { useGraphStore } from "../stores/graphStore";
 import { GraphSchema } from "../schemas/graph.schema";
 
+const MIN_DISTANCE = 150;
+
 function GraphBuilderInner() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition, fitView, getViewport } = useReactFlow();
+  const store = useStoreApi();
+  const { screenToFlowPosition, fitView, getViewport, getInternalNode } = useReactFlow();
+  const [tempEdge, setTempEdge] = useState<Edge | null>(null);
 
   const rfNodes = useGraphStore((s) => s.rfNodes);
   const rfEdges = useGraphStore((s) => s.rfEdges);
@@ -94,6 +101,91 @@ function GraphBuilderInner() {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
   }, [setSelectedNodeId, setSelectedEdgeId]);
+
+  const getClosestEdge = useCallback(
+    (node: Node) => {
+      const { nodeLookup } = store.getState();
+      const internalNode = getInternalNode(node.id);
+      if (!internalNode) return null;
+
+      const closestNode = Array.from(nodeLookup.values()).reduce(
+        (res: { distance: number; node: typeof internalNode | null }, n) => {
+          if (n.id !== internalNode.id) {
+            const dx =
+              n.internals.positionAbsolute.x -
+              internalNode.internals.positionAbsolute.x;
+            const dy =
+              n.internals.positionAbsolute.y -
+              internalNode.internals.positionAbsolute.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+
+            if (d < res.distance && d < MIN_DISTANCE) {
+              res.distance = d;
+              res.node = n;
+            }
+          }
+          return res;
+        },
+        { distance: Number.MAX_VALUE, node: null }
+      );
+
+      if (!closestNode.node) {
+        return null;
+      }
+
+      const closeNodeIsSource =
+        closestNode.node.internals.positionAbsolute.x <
+        internalNode.internals.positionAbsolute.x;
+
+      return {
+        id: closeNodeIsSource
+          ? `${closestNode.node.id}-${node.id}`
+          : `${node.id}-${closestNode.node.id}`,
+        source: closeNodeIsSource ? closestNode.node.id : node.id,
+        target: closeNodeIsSource ? node.id : closestNode.node.id,
+      };
+    },
+    [store, getInternalNode]
+  );
+
+  const onNodeDrag = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      const closeEdge = getClosestEdge(node);
+
+      if (closeEdge) {
+        // Check if edge already exists
+        const edgeExists = rfEdges.some(
+          (e) => e.source === closeEdge.source && e.target === closeEdge.target
+        );
+        if (!edgeExists) {
+          setTempEdge({ ...closeEdge, className: "temp opacity-50" });
+        } else {
+          setTempEdge(null);
+        }
+      } else {
+        setTempEdge(null);
+      }
+    },
+    [getClosestEdge, rfEdges]
+  );
+
+  const onNodeDragStop = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      const closeEdge = getClosestEdge(node);
+      setTempEdge(null);
+
+      if (closeEdge) {
+        // Check if edge already exists
+        const edgeExists = rfEdges.some(
+          (e) => e.source === closeEdge.source && e.target === closeEdge.target
+        );
+        if (!edgeExists) {
+          addEdge_({ from: closeEdge.source, to: closeEdge.target });
+        }
+      }
+    },
+    [getClosestEdge, rfEdges, addEdge_]
+  );
 
   const handleAddNode = useCallback(() => {
     const id = `node_${nanoid(8)}`;
@@ -192,13 +284,15 @@ function GraphBuilderInner() {
         <main ref={reactFlowWrapper} className="absolute inset-0">
           <ReactFlow
             nodes={rfNodes}
-            edges={rfEdges}
+            edges={tempEdge ? [...rfEdges, tempEdge] : rfEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             onEdgeClick={onEdgeClick}
             onPaneClick={onPaneClick}
+            onNodeDrag={onNodeDrag}
+            onNodeDragStop={onNodeDragStop}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             defaultViewport={{ x: 0, y: 0, zoom: 1 }}

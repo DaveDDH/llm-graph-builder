@@ -16,13 +16,23 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
     >
       <Handle
         type="target"
-        position={Position.Top}
-        className={`!h-3 !w-3 ${selected ? "!bg-primary" : "!bg-secondary"}`}
+        position={Position.Left}
+        style={{
+          borderColor: selected ? "var(--primary)" : "var(--secondary)",
+          backgroundColor: "white",
+          width: "10px",
+          height: "10px",
+        }}
       />
       <Handle
         type="source"
-        position={Position.Bottom}
-        className={`!h-3 !w-3 ${selected ? "!bg-primary" : "!bg-secondary"}`}
+        position={Position.Right}
+        style={{
+          borderColor: selected ? "var(--primary)" : "var(--secondary)",
+          backgroundColor: "white",
+          width: "10px",
+          height: "10px",
+        }}
       />
 
       <div className="mb-1 flex items-center gap-2">
