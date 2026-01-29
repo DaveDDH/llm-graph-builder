@@ -5,7 +5,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   useReactFlow,
   ReactFlowProvider,
   useStoreApi,
@@ -73,7 +72,7 @@ function GraphBuilderInner() {
       let graphToImport = result.data;
       if (!hasPositions) {
         console.log("[GraphBuilder] Calculating node positions...");
-        const horizontalGap = 200;
+        const horizontalGap = 150;
         const nodesWithPositions = layoutGraph(result.data.nodes, result.data.edges, {
           horizontalSpacing: calculatedWidth + horizontalGap,
         });
@@ -397,7 +396,6 @@ function GraphBuilderInner() {
           >
             <Background />
             <Controls />
-            <MiniMap />
           </ReactFlow>
         </main>
 

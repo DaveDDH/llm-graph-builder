@@ -123,7 +123,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         nodes: newNodes,
         edges: newEdges,
         rfNodes: newNodes.map((n, i) => schemaNodeToRFNode(n, i)),
-        rfEdges: newEdges.map((e, i) => schemaEdgeToRFEdge(e, i)),
+        rfEdges: newEdges.map((e, i) => schemaEdgeToRFEdge(e, i, newNodes)),
         startNode: state.startNode === oldId ? newId : state.startNode,
         selectedNodeId: state.selectedNodeId === oldId ? newId : state.selectedNodeId,
       };
@@ -138,7 +138,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         nodes: newNodes,
         edges: newEdges,
         rfNodes: newNodes.map((n, i) => schemaNodeToRFNode(n, i)),
-        rfEdges: newEdges.map((e, i) => schemaEdgeToRFEdge(e, i)),
+        rfEdges: newEdges.map((e, i) => schemaEdgeToRFEdge(e, i, newNodes)),
         selectedNodeId:
           state.selectedNodeId === id ? null : state.selectedNodeId,
       };
@@ -163,7 +163,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       const newEdges = [...state.edges, edge];
       return {
         edges: newEdges,
-        rfEdges: newEdges.map((e, i) => schemaEdgeToRFEdge(e, i)),
+        rfEdges: newEdges.map((e, i) => schemaEdgeToRFEdge(e, i, state.nodes)),
       };
     });
   },
@@ -175,7 +175,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       );
       return {
         edges: newEdges,
-        rfEdges: newEdges.map((e, i) => schemaEdgeToRFEdge(e, i)),
+        rfEdges: newEdges.map((e, i) => schemaEdgeToRFEdge(e, i, state.nodes)),
       };
     });
   },
@@ -188,7 +188,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       );
       return {
         edges: newEdges,
-        rfEdges: newEdges.map((e, i) => schemaEdgeToRFEdge(e, i)),
+        rfEdges: newEdges.map((e, i) => schemaEdgeToRFEdge(e, i, state.nodes)),
         selectedEdgeId:
           state.selectedEdgeId === edgeId ? null : state.selectedEdgeId,
       };
@@ -231,7 +231,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       nodes: graph.nodes,
       edges: graph.edges,
       rfNodes: graph.nodes.map((n, i) => schemaNodeToRFNode(n, i)),
-      rfEdges: graph.edges.map((e, i) => schemaEdgeToRFEdge(e, i)),
+      rfEdges: graph.edges.map((e, i) => schemaEdgeToRFEdge(e, i, graph.nodes)),
       selectedNodeId: null,
       selectedEdgeId: null,
     });

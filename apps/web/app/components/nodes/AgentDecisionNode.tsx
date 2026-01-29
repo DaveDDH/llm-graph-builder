@@ -19,9 +19,86 @@ function AgentDecisionNodeComponent({ data, selected }: NodeProps) {
       } ${nodeData.muted ? "opacity-40" : "opacity-100"}`}
       style={{ width: `${width}px` }}
     >
+      {/* Top handles */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top-target"
+        style={{
+          borderColor: selected ? "var(--primary)" : "var(--secondary)",
+          backgroundColor: "white",
+          width: "10px",
+          height: "10px",
+        }}
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="top-source"
+        style={{
+          borderColor: selected ? "var(--primary)" : "var(--secondary)",
+          backgroundColor: "white",
+          width: "10px",
+          height: "10px",
+          left: "40%",
+        }}
+      />
+
+      {/* Bottom handles */}
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="bottom-target"
+        style={{
+          borderColor: selected ? "var(--primary)" : "var(--secondary)",
+          backgroundColor: "white",
+          width: "10px",
+          height: "10px",
+        }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom-source"
+        style={{
+          borderColor: selected ? "var(--primary)" : "var(--secondary)",
+          backgroundColor: "white",
+          width: "10px",
+          height: "10px",
+          left: "40%",
+        }}
+      />
+
+      {/* Left handles */}
       <Handle
         type="target"
         position={Position.Left}
+        id="left-target"
+        style={{
+          borderColor: selected ? "var(--primary)" : "var(--secondary)",
+          backgroundColor: "white",
+          width: "10px",
+          height: "10px",
+        }}
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="left-source"
+        style={{
+          borderColor: selected ? "var(--primary)" : "var(--secondary)",
+          backgroundColor: "white",
+          width: "10px",
+          height: "10px",
+          top: "40%",
+        }}
+      />
+
+      {/* Right handles */}
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="right-target"
         style={{
           borderColor: selected ? "var(--primary)" : "var(--secondary)",
           backgroundColor: "white",
@@ -32,11 +109,13 @@ function AgentDecisionNodeComponent({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Right}
+        id="right-source"
         style={{
           borderColor: selected ? "var(--primary)" : "var(--secondary)",
           backgroundColor: "white",
           width: "10px",
           height: "10px",
+          top: "40%",
         }}
       />
 
