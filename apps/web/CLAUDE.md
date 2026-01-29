@@ -6,17 +6,24 @@
 - shadcn components are located in `components/ui/`
 - To add new shadcn components: `npx shadcn@latest add <component-name>`
 - Available components: https://ui.shadcn.com/docs/components
+- Note: This app uses shadcn with @base-ui/react (not @radix-ui)
 
 ### Installed shadcn Components
 
+- Alert Dialog (`components/ui/alert-dialog.tsx`)
+- Badge (`components/ui/badge.tsx`)
 - Button (`components/ui/button.tsx`)
-- Checkbox (`components/ui/checkbox.tsx`)
-- Input (`components/ui/input.tsx`)
-- Textarea (`components/ui/textarea.tsx`)
-- Select (`components/ui/select.tsx`)
-- Label (`components/ui/label.tsx`)
 - Card (`components/ui/card.tsx`)
+- Checkbox (`components/ui/checkbox.tsx`)
+- Combobox (`components/ui/combobox.tsx`)
+- Dropdown Menu (`components/ui/dropdown-menu.tsx`)
+- Field (`components/ui/field.tsx`)
+- Input (`components/ui/input.tsx`)
+- Input Group (`components/ui/input-group.tsx`)
+- Label (`components/ui/label.tsx`)
+- Select (`components/ui/select.tsx`)
 - Separator (`components/ui/separator.tsx`)
+- Textarea (`components/ui/textarea.tsx`)
 
 ## TypeScript
 

@@ -176,9 +176,9 @@ export function EdgePanel({ edgeId }: EdgePanelProps) {
                         <Label className="text-xs">Type</Label>
                         <Select
                           value={newPreconditionType}
-                          onValueChange={(value) =>
-                            setNewPreconditionType(value as PreconditionType)
-                          }
+                          onValueChange={(value) => {
+                            if (value) setNewPreconditionType(value as PreconditionType);
+                          }}
                         >
                           <SelectTrigger className="h-8 text-xs">
                             <SelectValue />

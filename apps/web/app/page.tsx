@@ -1,5 +1,5 @@
 import { GraphBuilder } from "./components/GraphBuilder";
 
-export default function Home() {
+export default function Page() {
   return <GraphBuilder />;
 }

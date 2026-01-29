@@ -144,7 +144,7 @@ export function NodePanel({ nodeId }: NodePanelProps) {
 
           <div className="space-y-2">
             <Label htmlFor="agent">Agent</Label>
-            <Select value={agent} onValueChange={setAgent}>
+            <Select value={agent} onValueChange={(value) => setAgent(value ?? "")}>
               <SelectTrigger>
                 <SelectValue placeholder="Select agent..." />
               </SelectTrigger>
