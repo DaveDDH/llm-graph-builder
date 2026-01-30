@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, Plus, X, Info } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  X,
+  Info,
+  MessageCircle,
+  Brain,
+  Wrench,
+} from "lucide-react";
 import { useEdges, useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -191,11 +199,34 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
   const getTypeColor = (type: PreconditionType) => {
     switch (type) {
       case "user_said":
-        return "bg-green-100 text-green-700";
+        return "text-green-700";
       case "agent_decision":
-        return "bg-purple-100 text-purple-700";
+        return "text-purple-700";
       case "tool_call":
-        return "bg-orange-100 text-orange-700";
+        return "text-orange-700";
+    }
+  };
+
+  const getTypeIcon = (type: PreconditionType) => {
+    const iconStyle = `w-3 h-3 ${getTypeColor(type)}`;
+    switch (type) {
+      case "user_said":
+        return <MessageCircle className={iconStyle} />;
+      case "agent_decision":
+        return <Brain className={iconStyle} />;
+      case "tool_call":
+        return <Wrench className={iconStyle} />;
+    }
+  };
+
+  const getTypeBackgroundColor = (type: PreconditionType) => {
+    switch (type) {
+      case "user_said":
+        return "bg-green-100";
+      case "agent_decision":
+        return "bg-purple-100";
+      case "tool_call":
+        return "bg-orange-100";
     }
   };
 
@@ -215,7 +246,7 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b p-2 px-4">
+      <div className="border-b p-2 px-3">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold">Edge Properties</h4>
           {!isFromStartNode && (
@@ -255,33 +286,35 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
         </div>
       </div>
 
-      <p className="mt-1 text-xs text-muted-foreground p-4 pb-0">
-        {from} → {to}
-      </p>
-
-      {existingType && (
-        <div className="p-4 pt-2">
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              Edges are locked to:{" "}
-              <span
-                className={`rounded px-1 py-0.5 ${getTypeColor(existingType)}`}
-              >
-                {existingType}
-              </span>
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
+      <div className="p-3">
+        <p className="text-xs/relaxed leading-none font-medium">
+          {from} <b>→</b> {to}
+        </p>
+        {existingType && (
+          <div className="mt-2">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Edges are locked to:{" "}
+                <span
+                  className={`rounded px-1 py-0.5 ${getTypeColor(existingType)} ${getTypeBackgroundColor(existingType)}`}
+                >
+                  {existingType}
+                </span>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+      </div>
 
       <Separator />
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-3">
         <div className="flex flex-col gap-4">
           <div>
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-1 flex items-center justify-between">
               <Label>Precondition</Label>
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -294,7 +327,7 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
                     setIsAddingPrecondition(true);
                   }
                 }}
-                className="h-6 w-6"
+                className={`h-6 w-6 ${preconditions.length === 0 ? "visible" : "invisible"}`}
                 title="Add precondition"
               >
                 <Plus className="h-4 w-4" />
@@ -305,17 +338,28 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
               {preconditions.map((p, index) => (
                 <Card key={index} className="p-2">
                   <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1">
-                      <span
-                        className={`inline-block rounded px-1.5 py-0.5 text-xs ${getTypeColor(p.type)}`}
+                    <div className="min-w-0 flex-1 flex flex-col gap-1">
+
+                      <div
+                        className={`flex items-center gap-1 leading-none rounded text-[10px] font-semibold ${getTypeColor(p.type)}`}
                       >
-                        {p.type}
-                      </span>
-                      <p className="mt-1 text-sm">{p.value}</p>
+                        {getTypeIcon(p.type)}
+                        {p.type.toUpperCase()}:
+                      </div>
+
+                      <div className="flex text-sm items-center gap-1 bg-muted rounded-md p-2 mt-1">
+                        {p.type === "user_said" && "“"}
+                        {p.value}
+                        {p.type === "user_said" && "”"}
+                      </div>
+
                       {p.description && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {p.description}
-                        </p>
+                        <div className="flex w-full h-fit items-stretch">
+                          <div className="w-[2px] bg-muted h-full"></div>
+                          <div className="text-xs text-muted-foreground">
+                            {p.description}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
