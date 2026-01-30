@@ -204,17 +204,32 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
           top: "65%",
           right: "0%",
           borderWidth: 0,
-          borderRightWidth: "1px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ArrowRight
-          size={ICON_SIZE}
-          className="text-green-500"
-          style={{  transform: "rotate(0deg)" }}
-        />
+        <div className="relative w-full h-full flex flex-col justify-center items-center">
+          <ArrowRight
+            size={ICON_SIZE}
+            className="absolute text-green-500"
+            style={{ transform: "rotate(0deg)" }}
+          />
+          <div className="absolute right-[1px]">
+            <svg
+              width={HANDLE_SIZE / 2}
+              height={HANDLE_SIZE}
+              viewBox="0 0 8 16"
+            >
+              <path
+                d="M 0 0 A 8 8 0 0 1 0 16 L 8 16 L 8 0 Z"
+                fill="var(--xy-background-color)"
+                stroke={borderColor}
+                strokeWidth="1"
+              />
+            </svg>
+          </div>
+        </div>
       </Handle>
 
       {/* Header */}
