@@ -4,7 +4,7 @@ import { memo } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getBezierPath,
+  getSmoothStepPath,
   type EdgeProps,
 } from "@xyflow/react";
 import { MessageSquare, Brain, Wrench } from "lucide-react";
@@ -26,13 +26,14 @@ function PreconditionEdgeComponent({
   data,
   selected,
 }: EdgeProps) {
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 8, // Rounded corners on the right angles
   });
 
   const edgeData = data as RFEdgeData | undefined;

@@ -1,21 +1,30 @@
 import type { Node, Edge } from "../schemas/graph.schema";
+import { dagre } from "../lib/dagre";
+
+interface NodeDimensions {
+  width: number;
+  height: number;
+}
 
 interface LayoutOptions {
   horizontalSpacing?: number;
   verticalSpacing?: number;
-  nodeHeight?: number;
+  defaultNodeWidth?: number;
+  defaultNodeHeight?: number;
+  nodeDimensions?: Record<string, NodeDimensions>; // Per-node dimensions
+  rankdir?: "TB" | "BT" | "LR" | "RL";
 }
 
 interface LayoutResult {
   nodes: Node[];
-  edges: Edge[];
+  edges: Edge[]; // All edges, not just tree edges
 }
 
 /**
- * Layout algorithm with tree-like Y positioning:
- * - X coordinate: BFS distance from INITIAL_STEP (depth)
- * - Y coordinate: children centered under parent, calculated level by level
- * - Only returns edges that flow left-to-right (level N to level N+1)
+ * Layout algorithm using dagre (Sugiyama method):
+ * - Handles all edges including back-edges and cycles
+ * - Minimizes edge crossings
+ * - Respects per-node dimensions
  */
 export function layoutGraph(
   nodes: Node[],
@@ -25,9 +34,12 @@ export function layoutGraph(
   console.log("[layoutGraph] Starting layout with", nodes.length, "nodes and", edges.length, "edges");
 
   const {
-    horizontalSpacing = 300,
+    horizontalSpacing = 150,
     verticalSpacing = 50,
-    nodeHeight = 100,
+    defaultNodeWidth = 180,
+    defaultNodeHeight = 130,
+    nodeDimensions = {},
+    rankdir = "LR",
   } = options;
 
   if (nodes.length === 0) {
@@ -35,168 +47,120 @@ export function layoutGraph(
     return { nodes: [], edges: [] };
   }
 
-  const nodeIds = new Set(nodes.map((n) => n.id));
-  const startId = "INITIAL_STEP";
+  // Helper to get node dimensions
+  const getNodeDimensions = (nodeId: string): NodeDimensions => {
+    return nodeDimensions[nodeId] ?? { width: defaultNodeWidth, height: defaultNodeHeight };
+  };
 
-  // Step 1: BFS to find distance from start node to all other nodes
-  const distances = new Map<string, number>();
-  const outgoing = new Map<string, string[]>();
+  // Create a new dagre graph
+  const g = new dagre.graphlib.Graph();
 
-  nodes.forEach((node) => outgoing.set(node.id, []));
-  edges.forEach((edge) => {
-    if (nodeIds.has(edge.from) && nodeIds.has(edge.to)) {
-      outgoing.get(edge.from)?.push(edge.to);
-    }
+  // Set graph options
+  g.setGraph({
+    rankdir,
+    nodesep: verticalSpacing,  // Vertical spacing between nodes in same rank
+    ranksep: horizontalSpacing, // Horizontal spacing between ranks
+    marginx: 20,
+    marginy: 20,
   });
 
-  if (nodeIds.has(startId)) {
-    const queue: { id: string; distance: number }[] = [{ id: startId, distance: 0 }];
-    distances.set(startId, 0);
+  // Default edge label
+  g.setDefaultEdgeLabel(() => ({}));
 
-    while (queue.length > 0) {
-      const { id, distance } = queue.shift()!;
-      for (const childId of outgoing.get(id) ?? []) {
-        if (!distances.has(childId)) {
-          distances.set(childId, distance + 1);
-          queue.push({ id: childId, distance: distance + 1 });
-        }
-      }
-    }
-  }
-
-  // Handle unreachable nodes
+  // Add nodes with their specific dimensions
   nodes.forEach((node) => {
-    if (!distances.has(node.id)) {
-      distances.set(node.id, 0);
-    }
+    const dims = getNodeDimensions(node.id);
+    g.setNode(node.id, {
+      width: dims.width,
+      height: dims.height,
+      label: node.id,
+    });
+    console.log(`[layoutGraph] Node ${node.id}: width=${dims.width}, height=${dims.height}`);
   });
 
-  console.log("[layoutGraph] Distances:", Object.fromEntries(distances));
-
-  // Step 2: Create simplified tree graph (only edges from level N to level N+1)
-  const treeChildren = new Map<string, string[]>();
-  const treeEdges: Edge[] = [];
-
-  nodes.forEach((node) => treeChildren.set(node.id, []));
-
+  // Add ALL edges (dagre handles back-edges and cycles)
   edges.forEach((edge) => {
-    const fromDist = distances.get(edge.from);
-    const toDist = distances.get(edge.to);
-    if (fromDist !== undefined && toDist !== undefined && toDist === fromDist + 1) {
-      treeChildren.get(edge.from)?.push(edge.to);
-      treeEdges.push(edge);
-    }
+    g.setEdge(edge.from, edge.to);
   });
 
-  console.log("[layoutGraph] Tree children:", Object.fromEntries(treeChildren));
-  console.log("[layoutGraph] Tree edges:", treeEdges.length, "of", edges.length, "total");
+  // Run the layout algorithm
+  dagre.layout(g);
 
-  // Step 3: Group nodes by level
-  const maxDistance = Math.max(...distances.values());
-  const levels: string[][] = Array.from({ length: maxDistance + 1 }, () => []);
-
-  distances.forEach((distance, nodeId) => {
-    levels[distance].push(nodeId);
-  });
-
-  console.log("[layoutGraph] Levels:", levels);
-
-  // Step 4: Calculate subtree heights (from leaves to root)
-  // This tells us how much Y space each subtree needs
-  const subtreeHeight = new Map<string, number>();
-
-  for (let level = maxDistance; level >= 0; level--) {
-    for (const nodeId of levels[level]) {
-      const children = treeChildren.get(nodeId) ?? [];
-      if (children.length === 0) {
-        // Leaf node needs space for just itself
-        subtreeHeight.set(nodeId, nodeHeight);
-      } else {
-        // Parent needs sum of children's subtree heights + spacing between them
-        const childrenTotalHeight = children.reduce(
-          (sum, c) => sum + (subtreeHeight.get(c) ?? nodeHeight),
-          0
-        );
-        const spacing = (children.length - 1) * verticalSpacing;
-        subtreeHeight.set(nodeId, childrenTotalHeight + spacing);
-      }
-    }
-  }
-
-  console.log("[layoutGraph] Subtree heights:", Object.fromEntries(subtreeHeight));
-
-  // Step 5: Allocate Y ranges and position nodes (from root to leaves)
-  const yPositions = new Map<string, number>();
-  const yRanges = new Map<string, { start: number; end: number }>();
-
-  // Root gets range starting at 0
-  if (nodeIds.has(startId)) {
-    const rootHeight = subtreeHeight.get(startId) ?? nodeHeight;
-    yRanges.set(startId, { start: 0, end: rootHeight });
-  }
-
-  // Process level by level
-  for (let level = 0; level <= maxDistance; level++) {
-    for (const nodeId of levels[level]) {
-      const range = yRanges.get(nodeId);
-      if (!range) continue;
-
-      // Position this node centered in its range
-      const rangeCenter = (range.start + range.end) / 2;
-      const nodeY = rangeCenter - nodeHeight / 2;
-      yPositions.set(nodeId, nodeY);
-
-      console.log(`[layoutGraph] Node ${nodeId}: range=[${range.start}, ${range.end}], center=${rangeCenter}, Y=${nodeY}`);
-
-      // Allocate ranges to children
-      const children = treeChildren.get(nodeId) ?? [];
-      if (children.length > 0) {
-        let currentY = range.start;
-
-        for (const childId of children) {
-          const childHeight = subtreeHeight.get(childId) ?? nodeHeight;
-          yRanges.set(childId, { start: currentY, end: currentY + childHeight });
-          currentY += childHeight + verticalSpacing;
-        }
-      }
-    }
-  }
-
-  // Handle orphan nodes not connected to root
-  let orphanY = 0;
-  const allYs = Array.from(yPositions.values());
-  if (allYs.length > 0) {
-    orphanY = Math.max(...allYs) + nodeHeight + verticalSpacing;
-  }
-
-  for (const node of nodes) {
-    if (!yPositions.has(node.id)) {
-      yPositions.set(node.id, orphanY);
-      orphanY += nodeHeight + verticalSpacing;
-    }
-  }
-
-  console.log("[layoutGraph] Y positions:", Object.fromEntries(yPositions));
-
-  // Step 5: Build final positions
+  // Extract positions from dagre
   const positions = new Map<string, { x: number; y: number }>();
 
-  nodes.forEach((node) => {
-    const distance = distances.get(node.id) ?? 0;
-    const x = distance * horizontalSpacing;
-    const y = yPositions.get(node.id) ?? 0;
-    positions.set(node.id, { x, y });
+  g.nodes().forEach((nodeId: string) => {
+    const dagreNode = g.node(nodeId);
+    const dims = getNodeDimensions(nodeId);
+    if (dagreNode) {
+      // dagre returns center coordinates, we want top-left
+      positions.set(nodeId, {
+        x: dagreNode.x - dims.width / 2,
+        y: dagreNode.y - dims.height / 2,
+      });
+    }
   });
 
-  console.log("[layoutGraph] Final positions:", Object.fromEntries(positions));
+  console.log("[layoutGraph] Dagre positions:", Object.fromEntries(positions));
 
+  // Log node spans to verify no overlaps
+  console.log("[layoutGraph] Node spans (Y to Y+height):");
+  for (const node of nodes) {
+    const pos = positions.get(node.id);
+    const dims = getNodeDimensions(node.id);
+    if (pos) {
+      console.log(`  ${node.id}: Y=${pos.y}, height=${dims.height}, spans [${pos.y}, ${pos.y + dims.height}]`);
+    }
+  }
+
+  // Check for overlaps at same X level
+  const nodesByX = new Map<number, { id: string; y: number; height: number }[]>();
+  for (const node of nodes) {
+    const pos = positions.get(node.id);
+    const dims = getNodeDimensions(node.id);
+    if (pos) {
+      const xKey = Math.round(pos.x);
+      if (!nodesByX.has(xKey)) {
+        nodesByX.set(xKey, []);
+      }
+      nodesByX.get(xKey)!.push({ id: node.id, y: pos.y, height: dims.height });
+    }
+  }
+
+  for (const [xLevel, nodesAtLevel] of nodesByX) {
+    nodesAtLevel.sort((a, b) => a.y - b.y);
+
+    for (let i = 0; i < nodesAtLevel.length - 1; i++) {
+      const current = nodesAtLevel[i];
+      const next = nodesAtLevel[i + 1];
+      const currentEnd = current.y + current.height;
+
+      if (currentEnd > next.y) {
+        console.error(
+          `[layoutGraph] OVERLAP at X=${xLevel}: ${current.id} [${current.y}, ${currentEnd}] overlaps with ${next.id} [${next.y}, ${next.y + next.height}]`
+        );
+      } else {
+        const gap = next.y - currentEnd;
+        console.log(
+          `[layoutGraph] X=${xLevel}: ${current.id} -> ${next.id}, gap=${gap}`
+        );
+      }
+    }
+  }
+
+  // Build final positioned nodes
   const layoutedNodes = nodes.map((node) => ({
     ...node,
     position: positions.get(node.id) ?? { x: 0, y: 0 },
   }));
 
+  console.log("[layoutGraph] Final positions:", Object.fromEntries(
+    layoutedNodes.map(n => [n.id, n.position])
+  ));
+
+  // Return ALL edges (not filtered)
   return {
     nodes: layoutedNodes,
-    edges: treeEdges,
+    edges: edges,
   };
 }

@@ -17,7 +17,9 @@ interface HandlePair {
 
 /**
  * Calculate the closest source and target handles based on node positions.
- * For left-to-right tree layouts, always use right-source → left-target.
+ * Available handles:
+ * - Sources: right-source, top-source, bottom-source
+ * - Targets: left-target, top-target, bottom-target
  */
 function getClosestHandles(
   sourcePos: { x: number; y: number },
@@ -25,15 +27,21 @@ function getClosestHandles(
   _nodeWidth: number = DEFAULT_NODE_WIDTH,
   _nodeHeight: number = DEFAULT_NODE_HEIGHT
 ): HandlePair {
-  // Calculate direction from source to target
   const dx = targetPos.x - sourcePos.x;
+  const dy = targetPos.y - sourcePos.y;
 
   // For left-to-right flow (target is to the right)
   if (dx >= 0) {
     return { sourceHandle: "right-source", targetHandle: "left-target" };
+  }
+
+  // For right-to-left flow (back edges), use vertical handles
+  if (dy > 0) {
+    // Target is below source: use bottom-source → top-target
+    return { sourceHandle: "bottom-source", targetHandle: "top-target" };
   } else {
-    // For right-to-left flow (back edges)
-    return { sourceHandle: "left-source", targetHandle: "right-target" };
+    // Target is above source: use top-source → bottom-target
+    return { sourceHandle: "top-source", targetHandle: "bottom-target" };
   }
 }
 
