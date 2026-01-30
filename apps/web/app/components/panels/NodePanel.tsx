@@ -2,18 +2,12 @@
 
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
+import { useNodes, useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,25 +19,26 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useGraphStore } from "../../stores/graphStore";
+import type { RFNodeData } from "../../utils/graphTransformers";
+import type { Node } from "@xyflow/react";
 
 interface NodePanelProps {
   nodeId: string;
+  agents: Array<{ id: string; description: string }>;
+  onNodeDeleted?: () => void;
 }
 
-export function NodePanel({ nodeId }: NodePanelProps) {
-  const nodes = useGraphStore((s) => s.nodes);
-  const agents = useGraphStore((s) => s.agents);
-  const updateNode = useGraphStore((s) => s.updateNode);
-  const renameNode = useGraphStore((s) => s.renameNode);
-  const deleteNode = useGraphStore((s) => s.deleteNode);
+export function NodePanel({ nodeId, agents, onNodeDeleted }: NodePanelProps) {
+  const nodes = useNodes<Node<RFNodeData>>();
+  const { setNodes, setEdges } = useReactFlow();
 
   const node = nodes.find((n) => n.id === nodeId);
+  const nodeData = node?.data;
 
   const [prevNodeId, setPrevNodeId] = useState(nodeId);
   const [id, setId] = useState(node?.id ?? "");
 
-  // Reset form when selecting a different node (React recommended pattern)
+  // Reset form when selecting a different node
   if (nodeId !== prevNodeId) {
     setPrevNodeId(nodeId);
     const currentNode = nodes.find((n) => n.id === nodeId);
@@ -52,18 +47,55 @@ export function NodePanel({ nodeId }: NodePanelProps) {
     }
   }
 
-  if (!node) {
+  if (!node || !nodeData) {
     return <div className="p-4 text-muted-foreground">Node not found</div>;
   }
 
+  const updateNodeData = (updates: Partial<RFNodeData>) => {
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, ...updates } }
+          : n
+      )
+    );
+  };
+
+  const updateNodeType = (newType: string) => {
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId
+          ? { ...n, type: newType }
+          : n
+      )
+    );
+  };
+
   const handleIdBlur = () => {
     if (id !== nodeId && id.trim()) {
-      renameNode(nodeId, id);
+      // Rename node: update node id and all edges referencing it
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId
+            ? { ...n, id: id.trim(), data: { ...n.data, nodeId: id.trim() } }
+            : n
+        )
+      );
+      setEdges((eds) =>
+        eds.map((e) => ({
+          ...e,
+          id: e.id.replace(nodeId, id.trim()),
+          source: e.source === nodeId ? id.trim() : e.source,
+          target: e.target === nodeId ? id.trim() : e.target,
+        }))
+      );
     }
   };
 
   const handleDelete = () => {
-    deleteNode(nodeId);
+    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    onNodeDeleted?.();
   };
 
   return (
@@ -119,8 +151,8 @@ export function NodePanel({ nodeId }: NodePanelProps) {
             <Label htmlFor="text">Text</Label>
             <Textarea
               id="text"
-              value={node.text}
-              onChange={(e) => updateNode(nodeId, { text: e.target.value })}
+              value={nodeData.text}
+              onChange={(e) => updateNodeData({ text: e.target.value })}
               rows={3}
               placeholder="Node text..."
             />
@@ -130,8 +162,8 @@ export function NodePanel({ nodeId }: NodePanelProps) {
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              value={node.description}
-              onChange={(e) => updateNode(nodeId, { description: e.target.value })}
+              value={nodeData.description}
+              onChange={(e) => updateNodeData({ description: e.target.value })}
               rows={2}
               placeholder="Node description..."
             />
@@ -139,31 +171,29 @@ export function NodePanel({ nodeId }: NodePanelProps) {
 
           <div className="space-y-2">
             <Label htmlFor="agent">Agent</Label>
-            <Select
-              value={node.agent ?? ""}
-              onValueChange={(value) => updateNode(nodeId, { agent: value || undefined })}
+            <select
+              id="agent"
+              value={nodeData.agent ?? ""}
+              onChange={(e) => updateNodeData({ agent: e.target.value || undefined })}
               disabled={agents.length === 0}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select agent..." />
-              </SelectTrigger>
-              <SelectContent>
-                {agents.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.id}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="">Select agent...</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.id}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Checkbox
                 id="isDecisionNode"
-                checked={node.kind === "agent_decision"}
+                checked={node.type === "agent_decision"}
                 onCheckedChange={(checked) =>
-                  updateNode(nodeId, { kind: checked ? "agent_decision" : "agent" })
+                  updateNodeType(checked ? "agent_decision" : "agent")
                 }
               />
               <Label htmlFor="isDecisionNode">Is this a decision node?</Label>
@@ -172,9 +202,9 @@ export function NodePanel({ nodeId }: NodePanelProps) {
             <div className="flex items-center gap-2">
               <Checkbox
                 id="nextNodeIsUser"
-                checked={node.nextNodeIsUser ?? false}
+                checked={nodeData.nextNodeIsUser ?? false}
                 onCheckedChange={(checked) =>
-                  updateNode(nodeId, { nextNodeIsUser: checked === true || undefined })
+                  updateNodeData({ nextNodeIsUser: checked === true || undefined })
                 }
               />
               <Label htmlFor="nextNodeIsUser">Next node expects user input</Label>

@@ -23,7 +23,7 @@ import { edgeTypes } from "./edges";
 import { Toolbar } from "./panels/Toolbar";
 import { NodePanel } from "./panels/NodePanel";
 import { EdgePanel } from "./panels/EdgePanel";
-import { GraphSchema } from "../schemas/graph.schema";
+import { GraphSchema, type Agent } from "../schemas/graph.schema";
 import { GRAPH_DATA } from "../utils/loadGraphData";
 import {
   schemaNodeToRFNode,
@@ -38,19 +38,21 @@ const MIN_DISTANCE = 150;
 // Initialize nodes and edges from graph data
 function createInitialNodes(): Node<RFNodeData>[] {
   if (!GRAPH_DATA) return [];
-  return GRAPH_DATA.graph.nodes.map((n, i) => ({
+  const { graph, nodeWidth } = GRAPH_DATA;
+  return graph.nodes.map((n, i) => ({
     ...schemaNodeToRFNode(n, i),
     data: {
       ...schemaNodeToRFNode(n, i).data,
-      nodeWidth: GRAPH_DATA.nodeWidth,
+      nodeWidth,
     },
   }));
 }
 
 function createInitialEdges(): Edge<RFEdgeData>[] {
   if (!GRAPH_DATA) return [];
-  return GRAPH_DATA.graph.edges.map((e, i) =>
-    schemaEdgeToRFEdge(e, i, GRAPH_DATA.graph.nodes)
+  const { graph } = GRAPH_DATA;
+  return graph.edges.map((e, i) =>
+    schemaEdgeToRFEdge(e, i, graph.nodes)
   );
 }
 
@@ -70,6 +72,25 @@ function GraphBuilderInner() {
   const [tempEdge, setTempEdge] = useState<Edge | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [agents, setAgents] = useState<Agent[]>(GRAPH_DATA?.graph.agents ?? []);
+
+  // Agent management
+  const handleAddAgent = useCallback((agent: Agent) => {
+    setAgents((prev) => [...prev, agent]);
+  }, []);
+
+  const handleUpdateAgent = useCallback(
+    (id: string, updates: Partial<Omit<Agent, "id">>) => {
+      setAgents((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
+      );
+    },
+    []
+  );
+
+  const handleDeleteAgent = useCallback((id: string) => {
+    setAgents((prev) => prev.filter((a) => a.id !== id));
+  }, []);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -258,7 +279,7 @@ function GraphBuilderInner() {
   const handleExport = useCallback(() => {
     const graph = {
       startNode: GRAPH_DATA?.graph.startNode ?? "",
-      agents: GRAPH_DATA?.graph.agents ?? [],
+      agents,
       nodes: nodes.map((n) => ({
         id: n.id,
         text: (n.data as RFNodeData).text,
@@ -284,7 +305,7 @@ function GraphBuilderInner() {
     a.download = "graph.json";
     a.click();
     URL.revokeObjectURL(url);
-  }, [nodes, edges]);
+  }, [nodes, edges, agents]);
 
   // Combine edges with temp edge for display
   const displayEdges = tempEdge ? [...edges, tempEdge] : edges;
@@ -322,8 +343,19 @@ function GraphBuilderInner() {
 
         {(selectedNodeId || selectedEdgeId) && (
           <aside className="absolute right-0 top-0 bottom-0 w-80 border-l border-gray-200 bg-white">
-            {selectedNodeId && <NodePanel nodeId={selectedNodeId} />}
-            {selectedEdgeId && <EdgePanel edgeId={selectedEdgeId} />}
+            {selectedNodeId && (
+              <NodePanel
+                nodeId={selectedNodeId}
+                agents={agents}
+                onNodeDeleted={() => setSelectedNodeId(null)}
+              />
+            )}
+            {selectedEdgeId && (
+              <EdgePanel
+                edgeId={selectedEdgeId}
+                onEdgeDeleted={() => setSelectedEdgeId(null)}
+              />
+            )}
           </aside>
         )}
       </div>

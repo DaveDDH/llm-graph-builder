@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Trash2, Plus, X } from "lucide-react";
+import { useEdges, useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,23 +15,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { useGraphStore } from "../../stores/graphStore";
 import type { Precondition, PreconditionType } from "../../schemas/graph.schema";
+import type { RFEdgeData } from "../../utils/graphTransformers";
+import type { Edge } from "@xyflow/react";
 
 interface EdgePanelProps {
   edgeId: string;
+  onEdgeDeleted?: () => void;
 }
 
-export function EdgePanel({ edgeId }: EdgePanelProps) {
-  const edges = useGraphStore((s) => s.edges);
-  const updateEdge = useGraphStore((s) => s.updateEdge);
-  const deleteEdge = useGraphStore((s) => s.deleteEdge);
+export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
+  const edges = useEdges<Edge<RFEdgeData>>();
+  const { setEdges } = useReactFlow();
 
-  const [from, to] = edgeId.split("-");
-  const edge = edges.find((e) => e.from === from && e.to === to);
+  // Parse edge ID to get source and target
+  const edgeIdParts = edgeId.split("-");
+  const from = edgeIdParts[0];
+  const to = edgeIdParts[1];
+
+  const edge = edges.find((e) => e.source === from && e.target === to);
+  const edgeData = edge?.data;
 
   const [prevEdgeId, setPrevEdgeId] = useState(edgeId);
-  const [preconditions, setPreconditions] = useState<Precondition[]>(edge?.preconditions ?? []);
+  const [preconditions, setPreconditions] = useState<Precondition[]>(
+    edgeData?.preconditions ?? []
+  );
   const [isAddingPrecondition, setIsAddingPrecondition] = useState(false);
   const [newPreconditionType, setNewPreconditionType] =
     useState<PreconditionType>("user_said");
@@ -38,12 +47,12 @@ export function EdgePanel({ edgeId }: EdgePanelProps) {
   const [newPreconditionDescription, setNewPreconditionDescription] =
     useState("");
 
-  // Reset form when selecting a different edge (React recommended pattern)
+  // Reset form when selecting a different edge
   if (edgeId !== prevEdgeId) {
     setPrevEdgeId(edgeId);
-    const currentEdge = edges.find((e) => e.from === from && e.to === to);
-    if (currentEdge) {
-      setPreconditions(currentEdge.preconditions ?? []);
+    const currentEdge = edges.find((e) => e.source === from && e.target === to);
+    if (currentEdge?.data) {
+      setPreconditions(currentEdge.data.preconditions ?? []);
     }
   }
 
@@ -52,6 +61,16 @@ export function EdgePanel({ edgeId }: EdgePanelProps) {
   }
 
   const existingType = preconditions.length > 0 ? preconditions[0].type : null;
+
+  const updateEdgeData = (updates: Partial<RFEdgeData>) => {
+    setEdges((eds) =>
+      eds.map((e) =>
+        e.id === edge.id
+          ? { ...e, data: { ...e.data, ...updates } }
+          : e
+      )
+    );
+  };
 
   const handleAddPrecondition = () => {
     if (newPreconditionValue.trim()) {
@@ -62,7 +81,7 @@ export function EdgePanel({ edgeId }: EdgePanelProps) {
       };
       const newPreconditions = [...preconditions, newPrecondition];
       setPreconditions(newPreconditions);
-      updateEdge(from, to, { preconditions: newPreconditions });
+      updateEdgeData({ preconditions: newPreconditions });
       setNewPreconditionValue("");
       setNewPreconditionDescription("");
       setIsAddingPrecondition(false);
@@ -72,14 +91,15 @@ export function EdgePanel({ edgeId }: EdgePanelProps) {
   const handleRemovePrecondition = (index: number) => {
     const newPreconditions = preconditions.filter((_, i) => i !== index);
     setPreconditions(newPreconditions);
-    updateEdge(from, to, {
+    updateEdgeData({
       preconditions: newPreconditions.length > 0 ? newPreconditions : undefined,
     });
   };
 
   const handleDeleteEdge = () => {
     if (confirm("Are you sure you want to delete this edge?")) {
-      deleteEdge(from, to);
+      setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+      onEdgeDeleted?.();
     }
   };
 

@@ -2,18 +2,29 @@
 
 import { useState } from "react";
 import { Plus, Trash2, Edit2 } from "lucide-react";
+import { useNodes } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { useGraphStore } from "../../stores/graphStore";
+import type { Agent } from "../../schemas/graph.schema";
+import type { RFNodeData } from "../../utils/graphTransformers";
+import type { Node } from "@xyflow/react";
 
-export function AgentPanel() {
-  const agents = useGraphStore((s) => s.agents);
-  const nodes = useGraphStore((s) => s.nodes);
-  const addAgent = useGraphStore((s) => s.addAgent);
-  const updateAgent = useGraphStore((s) => s.updateAgent);
-  const deleteAgent = useGraphStore((s) => s.deleteAgent);
+interface AgentPanelProps {
+  agents: Agent[];
+  onAddAgent: (agent: Agent) => void;
+  onUpdateAgent: (id: string, updates: Partial<Omit<Agent, "id">>) => void;
+  onDeleteAgent: (id: string) => void;
+}
+
+export function AgentPanel({
+  agents,
+  onAddAgent,
+  onUpdateAgent,
+  onDeleteAgent,
+}: AgentPanelProps) {
+  const nodes = useNodes<Node<RFNodeData>>();
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -22,7 +33,7 @@ export function AgentPanel() {
 
   const handleAdd = () => {
     if (newId.trim()) {
-      addAgent({ id: newId.trim(), description: newDescription.trim() });
+      onAddAgent({ id: newId.trim(), description: newDescription.trim() });
       setNewId("");
       setNewDescription("");
       setIsAdding(false);
@@ -31,7 +42,7 @@ export function AgentPanel() {
 
   const handleUpdate = (id: string) => {
     if (newId.trim()) {
-      updateAgent(id, { description: newDescription.trim() });
+      onUpdateAgent(id, { description: newDescription.trim() });
       setEditingId(null);
       setNewId("");
       setNewDescription("");
@@ -39,14 +50,14 @@ export function AgentPanel() {
   };
 
   const handleDelete = (id: string) => {
-    const usedBy = nodes.filter((n) => n.agent === id);
+    const usedBy = nodes.filter((n) => n.data?.agent === id);
     if (usedBy.length > 0) {
       const proceed = confirm(
         `This agent is used by ${usedBy.length} node(s). Delete anyway?`
       );
       if (!proceed) return;
     }
-    deleteAgent(id);
+    onDeleteAgent(id);
   };
 
   const startEdit = (id: string, description: string) => {
