@@ -28,6 +28,7 @@ interface GraphState {
   // UI state
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
+  nodeWidth: number | null;
 }
 
 interface GraphActions {
@@ -57,11 +58,14 @@ interface GraphActions {
   setSelectedEdgeId: (id: string | null) => void;
 
   // Import/Export
-  importGraph: (graph: Graph) => void;
+  importGraph: (graph: Graph, nodeWidth?: number) => void;
   exportGraph: () => Graph;
 
   // Start node
   setStartNode: (id: string) => void;
+
+  // Node width
+  setNodeWidth: (width: number | null) => void;
 
   // Sync RF nodes (for drag updates from React Flow)
   syncRFNodes: (rfNodes: RFNode[]) => void;
@@ -78,6 +82,7 @@ const initialState: GraphState = {
   rfEdges: [],
   selectedNodeId: null,
   selectedEdgeId: null,
+  nodeWidth: null,
 };
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
@@ -224,8 +229,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   // Import/Export
-  importGraph: (graph) => {
-    set({
+  importGraph: (graph, nodeWidth) => {
+    console.log(`[importGraph] called - nodes: ${graph.nodes.length}, edges: ${graph.edges.length}, nodeWidth: ${nodeWidth}`);
+    set((state) => ({
       startNode: graph.startNode,
       agents: graph.agents,
       nodes: graph.nodes,
@@ -234,7 +240,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       rfEdges: graph.edges.map((e, i) => schemaEdgeToRFEdge(e, i, graph.nodes)),
       selectedNodeId: null,
       selectedEdgeId: null,
-    });
+      nodeWidth: nodeWidth ?? state.nodeWidth,
+    }));
   },
 
   exportGraph: () => {
@@ -245,6 +252,11 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   // Start node
   setStartNode: (id) => {
     set({ startNode: id });
+  },
+
+  // Node width
+  setNodeWidth: (width) => {
+    set({ nodeWidth: width });
   },
 
   // Sync RF nodes (for position updates from React Flow drag)

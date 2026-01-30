@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -28,35 +28,76 @@ import { useGraphStore } from "../stores/graphStore";
 import { GraphSchema } from "../schemas/graph.schema";
 import { layoutGraph } from "../utils/layoutGraph";
 import graphData from "../data/graph.json";
+import type { RFNodeData, RFEdgeData } from "../utils/graphTransformers";
 
 const MIN_DISTANCE = 150;
 
+type CachedNode = Node<RFNodeData>;
+type CachedEdge = Edge<RFEdgeData>;
+
+interface NodeCacheEntry {
+  node: CachedNode;
+  muted: boolean;
+  nodeWidth: number | null;
+}
+
+interface EdgeCacheEntry {
+  edge: CachedEdge;
+  selected: boolean;
+  muted: boolean;
+}
+
 function GraphBuilderInner() {
+  console.log("[GraphBuilderInner] render");
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const store = useStoreApi();
   const { screenToFlowPosition, fitView, getViewport, getInternalNode, setViewport } = useReactFlow();
   const [tempEdge, setTempEdge] = useState<Edge | null>(null);
-  const [nodeWidth, setNodeWidth] = useState<number | null>(null);
-  const importGraph = useGraphStore((s) => s.importGraph);
+
+  // Cache refs for stable object references
+  const nodeCache = useRef<Map<string, NodeCacheEntry>>(new Map());
+  const edgeCache = useRef<Map<string, EdgeCacheEntry>>(new Map());
+  const prevNodesResult = useRef<CachedNode[]>([]);
+  const prevEdgesResult = useRef<CachedEdge[]>([]);
+
+  // Single selector for all store data
+  const { rfNodes, rfEdges, selectedNodeId, selectedEdgeId, nodeWidth } = useGraphStore((s) => ({
+    rfNodes: s.rfNodes,
+    rfEdges: s.rfEdges,
+    selectedNodeId: s.selectedNodeId,
+    selectedEdgeId: s.selectedEdgeId,
+    nodeWidth: s.nodeWidth,
+  }));
 
   // Load and validate graph.json on mount
   useEffect(() => {
+    console.log("[GraphBuilder] Validating graph.json...");
     const result = GraphSchema.safeParse(graphData);
     if (result.success) {
+      console.log("[GraphBuilder] ✓ Graph validation successful");
+      console.log("[GraphBuilder] Graph summary:", {
+        startNode: result.data.startNode,
+        agents: result.data.agents.length,
+        nodes: result.data.nodes.length,
+        edges: result.data.edges.length,
+      });
+
       // Calculate node width based on longest ID
       const maxIdLength = Math.max(...result.data.nodes.map((n) => n.id.length));
-      const nodePadding = 40;
+      const nodePadding = 40; // padding inside the node
       const calculatedWidth = maxIdLength * 7.5 + nodePadding;
-      setNodeWidth(calculatedWidth);
+      console.log("[GraphBuilder] Node width calculated:", calculatedWidth, `(max ID length: ${maxIdLength})`);
 
       // Check if nodes have positions
       const hasPositions = result.data.nodes.every(
         (node) => node.position !== undefined
       );
+      console.log("[GraphBuilder] Nodes have positions:", hasPositions);
 
       // Calculate positions if nodes don't have them
       let graphToImport = result.data;
       if (!hasPositions) {
+        console.log("[GraphBuilder] Calculating node positions...");
         const horizontalGap = 150;
         const verticalGap = 150;
         const nodeHeight = 80;
@@ -68,72 +109,156 @@ function GraphBuilderInner() {
           ...result.data,
           nodes: nodesWithPositions,
         };
+        console.log("[GraphBuilder] ✓ Positions calculated");
       }
 
-      importGraph(graphToImport);
+      // Use getState() to avoid dependency on importGraph
+      useGraphStore.getState().importGraph(graphToImport, calculatedWidth);
 
       // Position viewport so INITIAL_STEP is centered vertically and aligned left
       setTimeout(() => {
+        console.log("[setTimeout] Viewport positioning triggered");
         const initialNode = graphToImport.nodes.find((n) => n.id === "INITIAL_STEP");
         if (initialNode?.position && reactFlowWrapper.current) {
           const { height } = reactFlowWrapper.current.getBoundingClientRect();
-          const nodeHeight = 120;
-          const padding = 50;
+          const nodeHeight = 120; // Approximate node height
+          const padding = 50; // Left padding
 
+          console.log("[setViewport] called");
           setViewport({
             x: -initialNode.position.x + padding,
             y: -initialNode.position.y + height / 2 - nodeHeight / 2,
             zoom: 1,
           });
         } else {
+          console.log("[fitView] called");
           fitView({ padding: 0.2 });
         }
       }, 100);
     } else {
-      console.error("[GraphBuilder] Graph validation failed:", result.error.format());
+      console.error("[GraphBuilder] ✗ Graph validation failed:");
+      console.error(result.error.format());
     }
-  }, [importGraph, fitView, setViewport]);
+  }, [fitView, setViewport]);
 
-  const rfNodes = useGraphStore((s) => s.rfNodes);
-  const rfEdges = useGraphStore((s) => s.rfEdges);
-  const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
-  const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId);
+  // Compute nodes with stable references - only create new objects when data changes
+  const nodesWithMuted = (() => {
+    const cache = nodeCache.current;
+    const currentIds = new Set(rfNodes.map((n) => n.id));
 
-  const nodesWithMuted = useMemo(
-    () =>
-      rfNodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          muted: selectedNodeId !== null && node.id !== selectedNodeId,
-          nodeWidth,
-        },
-      })),
-    [rfNodes, selectedNodeId, nodeWidth]
-  );
+    // Clean up cache for removed nodes
+    for (const id of cache.keys()) {
+      if (!currentIds.has(id)) {
+        cache.delete(id);
+      }
+    }
 
-  const edgesWithSelection = useMemo(
-    () =>
-      rfEdges.map((edge) => ({
-        ...edge,
-        selected: edge.id === selectedEdgeId,
-        data: {
-          ...edge.data,
-          muted: selectedNodeId !== null && edge.source !== selectedNodeId,
-        },
-      })),
-    [rfEdges, selectedEdgeId, selectedNodeId]
-  );
+    let hasChanges = false;
+    const result: CachedNode[] = [];
 
+    for (const node of rfNodes) {
+      const muted = selectedNodeId !== null && node.id !== selectedNodeId;
+      const cached = cache.get(node.id);
+
+      // Check if we can reuse the cached node
+      if (
+        cached &&
+        cached.node.data === node.data &&
+        cached.node.position === node.position &&
+        cached.muted === muted &&
+        cached.nodeWidth === nodeWidth
+      ) {
+        result.push(cached.node);
+      } else {
+        // Create new node object only when necessary
+        const newNode: CachedNode = {
+          ...node,
+          data: {
+            ...node.data,
+            muted,
+            nodeWidth,
+          },
+        };
+        cache.set(node.id, { node: newNode, muted, nodeWidth });
+        result.push(newNode);
+        hasChanges = true;
+      }
+    }
+
+    // Return same array reference if nothing changed
+    if (!hasChanges && result.length === prevNodesResult.current.length) {
+      return prevNodesResult.current;
+    }
+
+    prevNodesResult.current = result;
+    return result;
+  })();
+
+  // Compute edges with stable references - only create new objects when data changes
+  const edgesWithSelection = (() => {
+    const cache = edgeCache.current;
+    const currentIds = new Set(rfEdges.map((e) => e.id));
+
+    // Clean up cache for removed edges
+    for (const id of cache.keys()) {
+      if (!currentIds.has(id)) {
+        cache.delete(id);
+      }
+    }
+
+    let hasChanges = false;
+    const result: CachedEdge[] = [];
+
+    for (const edge of rfEdges) {
+      const selected = edge.id === selectedEdgeId;
+      const muted = selectedNodeId !== null && edge.source !== selectedNodeId;
+      const cached = cache.get(edge.id);
+
+      // Check if we can reuse the cached edge
+      if (
+        cached &&
+        cached.edge.data === edge.data &&
+        cached.selected === selected &&
+        cached.muted === muted
+      ) {
+        result.push(cached.edge);
+      } else {
+        // Create new edge object only when necessary
+        const newEdge: CachedEdge = {
+          ...edge,
+          selected,
+          data: {
+            ...edge.data,
+            muted,
+          },
+        };
+        cache.set(edge.id, { edge: newEdge, selected, muted });
+        result.push(newEdge);
+        hasChanges = true;
+      }
+    }
+
+    // Return same array reference if nothing changed
+    if (!hasChanges && result.length === prevEdgesResult.current.length) {
+      return prevEdgesResult.current;
+    }
+
+    prevEdgesResult.current = result;
+    return result;
+  })();
+
+  // Action selectors - these are stable function references
   const setSelectedNodeId = useGraphStore((s) => s.setSelectedNodeId);
   const setSelectedEdgeId = useGraphStore((s) => s.setSelectedEdgeId);
   const addNode = useGraphStore((s) => s.addNode);
   const addEdge_ = useGraphStore((s) => s.addEdge);
   const syncRFNodes = useGraphStore((s) => s.syncRFNodes);
   const exportGraph = useGraphStore((s) => s.exportGraph);
+  const importGraph = useGraphStore((s) => s.importGraph);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
+      // Filter out non-position changes that could cause loops
       const meaningfulChanges = changes.filter(
         (change) =>
           change.type === "position" ||
@@ -150,6 +275,7 @@ function GraphBuilderInner() {
 
   const onEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
+      // We handle edge changes through the store
       applyEdgeChanges(changes, rfEdges);
     },
     [rfEdges]
@@ -234,6 +360,7 @@ function GraphBuilderInner() {
       const closeEdge = getClosestEdge(node);
 
       if (closeEdge) {
+        // Check if edge already exists
         const edgeExists = rfEdges.some(
           (e) => e.source === closeEdge.source && e.target === closeEdge.target
         );
@@ -255,6 +382,7 @@ function GraphBuilderInner() {
       setTempEdge(null);
 
       if (closeEdge) {
+        // Check if edge already exists
         const edgeExists = rfEdges.some(
           (e) => e.source === closeEdge.source && e.target === closeEdge.target
         );
@@ -268,22 +396,37 @@ function GraphBuilderInner() {
 
   const handleAddNode = useCallback(() => {
     const id = `node_${nanoid(8)}`;
+    // Place new node at center of current viewport
     const wrapper = reactFlowWrapper.current;
-    if (!wrapper) return;
-
+    if (!wrapper) {
+      console.log("[handleAddNode] wrapper is null");
+      return;
+    }
     const rect = wrapper.getBoundingClientRect();
+    console.log("[handleAddNode] wrapper rect:", {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    });
     const screenCenter = {
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height * 0.3,
     };
+    console.log("[handleAddNode] screen center:", screenCenter);
     const position = screenToFlowPosition(screenCenter);
+    const viewport = getViewport();
+    console.log("[handleAddNode] current viewport:", viewport);
+    console.log("[handleAddNode] flow position:", position);
+    // Offset by half the node dimensions to center visually
+    // AgentNode is approximately 180px wide x 60px tall
     const NODE_WIDTH = 180;
     const NODE_HEIGHT = 60;
     const centeredPosition = {
       x: position.x - NODE_WIDTH / 2,
       y: position.y - NODE_HEIGHT / 2,
     };
-
+    console.log("[handleAddNode] centered position:", centeredPosition);
     addNode({
       id,
       text: "New node",
@@ -292,7 +435,7 @@ function GraphBuilderInner() {
       position: centeredPosition,
     });
     setSelectedNodeId(id);
-  }, [addNode, setSelectedNodeId, screenToFlowPosition]);
+  }, [addNode, setSelectedNodeId, screenToFlowPosition, getViewport]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement("input");
@@ -308,6 +451,7 @@ function GraphBuilderInner() {
         const result = GraphSchema.safeParse(json);
         if (result.success) {
           importGraph(result.data);
+          // Fit view after import with a small delay to ensure nodes are rendered
           setTimeout(() => fitView({ padding: 0.2 }), 50);
         } else {
           alert("Invalid graph file: " + result.error.message);
@@ -338,9 +482,12 @@ function GraphBuilderInner() {
 
   return (
     <div className="flex h-screen w-screen flex-col">
+      {/* Header */}
       <Toolbar onAddNode={handleAddNode} onImport={handleImport} onExport={handleExport} />
 
+      {/* Main Content */}
       <div className="relative flex-1 overflow-hidden">
+        {/* Canvas - Full size */}
         <main ref={reactFlowWrapper} className="absolute inset-0">
           <ReactFlow
             nodes={nodesWithMuted}
@@ -363,6 +510,7 @@ function GraphBuilderInner() {
           </ReactFlow>
         </main>
 
+        {/* Right Sidebar - Only visible when something is selected */}
         {(selectedNodeId || selectedEdgeId) && (
           <aside className="absolute right-0 top-0 bottom-0 w-80 border-l border-gray-200 bg-white">
             {selectedNodeId && <NodePanel nodeId={selectedNodeId} />}

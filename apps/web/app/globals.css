@@ -214,3 +214,10 @@
   animation: dash-flow 1s linear infinite;
 }
 
+/* Default edge styling - dashed */
+.react-flow .react-flow__edge .react-flow__edge-path {
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+}
+
