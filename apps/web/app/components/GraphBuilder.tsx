@@ -73,8 +73,11 @@ function GraphBuilderInner() {
       if (!hasPositions) {
         console.log("[GraphBuilder] Calculating node positions...");
         const horizontalGap = 150;
+        const verticalGap = 150;
+        const nodeHeight = 80;
         const nodesWithPositions = layoutGraph(result.data.nodes, result.data.edges, {
           horizontalSpacing: calculatedWidth + horizontalGap,
+          verticalSpacing: nodeHeight + verticalGap,
         });
         graphToImport = {
           ...result.data,

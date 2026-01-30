@@ -18,7 +18,7 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
 
   return (
     <div
-      className={`rounded-lg border bg-white transition-opacity ${
+      className={`rounded-lg border bg-white p-1 transition-opacity ${
         selected ? "border-primary" : "border-secondary"
       } ${nodeData.muted ? "opacity-40" : "opacity-100"}`}
       style={{ width: `${width}px` }}
@@ -360,7 +360,7 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
       </Handle>
 
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex items-center gap-2 px-4 py-3">
         <Bot className="h-4 w-4 text-muted-foreground" />
         <span className="text-xs font-medium uppercase text-muted-foreground">
           Agent Node
@@ -378,7 +378,7 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
       <Separator />
 
       {/* Body */}
-      <div className="px-3 py-2">
+      <div className="px-4 py-3">
         <p className="text-sm font-medium text-foreground">{nodeData.nodeId}</p>
         {nodeData.description && (
           <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
