@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
   Controls,
+  MiniMap,
   useReactFlow,
   ReactFlowProvider,
   useNodesState,
@@ -24,7 +25,11 @@ import { Toolbar } from "./panels/Toolbar";
 import { NodePanel } from "./panels/NodePanel";
 import { EdgePanel } from "./panels/EdgePanel";
 import { GraphSchema, type Agent } from "../schemas/graph.schema";
-import { GRAPH_DATA } from "../utils/loadGraphData";
+import {
+  GRAPH_DATA,
+  findInitialNodePosition,
+  calculateInitialViewport,
+} from "../utils/loadGraphData";
 import {
   schemaNodeToRFNode,
   schemaEdgeToRFEdge,
@@ -61,7 +66,7 @@ function createInitialNodes(): Node<RFNodeData>[] {
       ...baseNode,
       type: isStartNode ? "start" : baseNode.type,
       selectable: !isStartNode,
-      draggable: !isStartNode,
+      draggable: false,
       data: {
         ...baseNode.data,
         nodeWidth,
@@ -73,9 +78,7 @@ function createInitialNodes(): Node<RFNodeData>[] {
 function createInitialEdges(): Edge<RFEdgeData>[] {
   if (!GRAPH_DATA) return [];
   const { graph } = GRAPH_DATA;
-  return graph.edges.map((e, i) =>
-    schemaEdgeToRFEdge(e, i, graph.nodes)
-  );
+  return graph.edges.map((e, i) => schemaEdgeToRFEdge(e, i, graph.nodes));
 }
 
 const initialNodes = createInitialNodes();
@@ -84,7 +87,8 @@ const initialEdges = createInitialEdges();
 function GraphBuilderInner() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const store = useStoreApi();
-  const { screenToFlowPosition, fitView, getInternalNode } = useReactFlow();
+  const { screenToFlowPosition, fitView, getInternalNode, setViewport } =
+    useReactFlow();
 
   // React Flow as source of truth
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -96,30 +100,36 @@ function GraphBuilderInner() {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [agents] = useState<Agent[]>(GRAPH_DATA?.graph.agents ?? []);
 
+  // Set initial viewport to show INITIAL_STEP
+  useEffect(() => {
+    if (!GRAPH_DATA || !reactFlowWrapper.current) return;
+
+    const initialPos = findInitialNodePosition(GRAPH_DATA.graph);
+    if (initialPos) {
+      const containerHeight = reactFlowWrapper.current.clientHeight;
+      const viewport = calculateInitialViewport(initialPos, containerHeight);
+      setViewport(viewport);
+    }
+  }, [setViewport]);
+
   const onConnect = useCallback(
     (params: Connection) => {
       setEdges((eds) => addEdge({ ...params, type: "precondition" }, eds));
     },
-    [setEdges]
+    [setEdges],
   );
 
-  const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      // Don't select the start node
-      if (node.id === START_NODE_ID) return;
-      setSelectedNodeId(node.id);
-      setSelectedEdgeId(null);
-    },
-    []
-  );
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    // Don't select the start node
+    if (node.id === START_NODE_ID) return;
+    setSelectedNodeId(node.id);
+    setSelectedEdgeId(null);
+  }, []);
 
-  const onEdgeClick = useCallback(
-    (_: React.MouseEvent, edge: Edge) => {
-      setSelectedEdgeId(edge.id);
-      setSelectedNodeId(null);
-    },
-    []
-  );
+  const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
+  }, []);
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
@@ -150,7 +160,7 @@ function GraphBuilderInner() {
           }
           return res;
         },
-        { distance: Number.MAX_VALUE, node: null }
+        { distance: Number.MAX_VALUE, node: null },
       );
 
       if (!closestNode.node) {
@@ -169,7 +179,7 @@ function GraphBuilderInner() {
         target: closeNodeIsSource ? node.id : closestNode.node.id,
       };
     },
-    [store, getInternalNode]
+    [store, getInternalNode],
   );
 
   const onNodeDrag = useCallback(
@@ -178,7 +188,7 @@ function GraphBuilderInner() {
 
       if (closeEdge) {
         const edgeExists = edges.some(
-          (e) => e.source === closeEdge.source && e.target === closeEdge.target
+          (e) => e.source === closeEdge.source && e.target === closeEdge.target,
         );
         if (!edgeExists) {
           setTempEdge({ ...closeEdge, className: "temp opacity-50" });
@@ -189,7 +199,7 @@ function GraphBuilderInner() {
         setTempEdge(null);
       }
     },
-    [getClosestEdge, edges]
+    [getClosestEdge, edges],
   );
 
   const onNodeDragStop = useCallback(
@@ -199,16 +209,16 @@ function GraphBuilderInner() {
 
       if (closeEdge) {
         const edgeExists = edges.some(
-          (e) => e.source === closeEdge.source && e.target === closeEdge.target
+          (e) => e.source === closeEdge.source && e.target === closeEdge.target,
         );
         if (!edgeExists) {
           setEdges((eds) =>
-            addEdge({ ...closeEdge, type: "precondition" }, eds)
+            addEdge({ ...closeEdge, type: "precondition" }, eds),
           );
         }
       }
     },
-    [getClosestEdge, edges, setEdges]
+    [getClosestEdge, edges, setEdges],
   );
 
   const handleAddNode = useCallback(() => {
@@ -269,7 +279,7 @@ function GraphBuilderInner() {
             };
           });
           const newEdges = result.data.edges.map((e, i) =>
-            schemaEdgeToRFEdge(e, i, result.data.nodes)
+            schemaEdgeToRFEdge(e, i, result.data.nodes),
           );
           setNodes(newNodes);
           setEdges(newEdges);
@@ -292,7 +302,9 @@ function GraphBuilderInner() {
         id: n.id,
         text: (n.data as RFNodeData).text,
         // Start node exports as "agent" kind for schema compatibility
-        kind: (n.type === "start" ? "agent" : n.type) as "agent" | "agent_decision",
+        kind: (n.type === "start" ? "agent" : n.type) as
+          | "agent"
+          | "agent_decision",
         description: (n.data as RFNodeData).description,
         agent: (n.data as RFNodeData).agent,
         nextNodeIsUser: (n.data as RFNodeData).nextNodeIsUser,
@@ -338,15 +350,20 @@ function GraphBuilderInner() {
             onNodeClick={onNodeClick}
             onEdgeClick={onEdgeClick}
             onPaneClick={onPaneClick}
-            onNodeDrag={onNodeDrag}
-            onNodeDragStop={onNodeDragStop}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-            deleteKeyCode="Delete"
           >
             <Background />
             <Controls />
+            <MiniMap
+              nodeStrokeWidth={3}
+              nodeColor={(node) => {
+                if (node.id === START_NODE_ID) return "#22c55e";
+                return "#e2e8f0";
+              }}
+              maskColor="rgba(0, 0, 0, 0.1)"
+            />
           </ReactFlow>
         </main>
 

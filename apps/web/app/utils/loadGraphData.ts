@@ -1,7 +1,7 @@
-import type { Graph, Node } from "../schemas/graph.schema";
+import type { Graph } from "../schemas/graph.schema";
 import { GraphSchema } from "../schemas/graph.schema";
 import { layoutGraph } from "./layoutGraph";
-import graphData from "../data/graph.json";
+import graphData from "../data/graph2.json";
 
 interface LoadGraphResult {
   graph: Graph;
@@ -14,35 +14,11 @@ function calculateNodeWidth(nodes: Graph["nodes"]): number {
   return maxIdLength * 7.5 + nodePadding;
 }
 
-/**
- * Estimate node height based on content.
- * This approximates the rendered height based on:
- * - Header: ~32px (icon + agent name)
- * - Separator: ~1px
- * - Body: varies based on text/description
- * - Padding: ~16px
- */
-function estimateNodeHeight(node: Node, nodeWidth: number): number {
-  const headerHeight = 32;
-  const separatorHeight = 1;
-  const paddingHeight = 16;
-  const lineHeight = 20;
-  const charWidth = 7; // Approximate character width
-
-  // Estimate text lines
-  const charsPerLine = Math.floor((nodeWidth - 16) / charWidth);
-  const textLines = node.text ? Math.ceil(node.text.length / charsPerLine) : 0;
-
-  // Estimate description lines
-  const descLines = node.description ? Math.ceil(node.description.length / charsPerLine) : 0;
-
-  const bodyHeight = (textLines + descLines) * lineHeight + 8; // 8px for body padding
-
-  return headerHeight + separatorHeight + bodyHeight + paddingHeight;
-}
+const FIXED_NODE_HEIGHT = 220;
 
 /**
- * Calculate per-node dimensions for layout
+ * Calculate per-node dimensions for layout.
+ * All nodes have fixed height of 133px except INITIAL_STEP.
  */
 function calculateNodeDimensions(
   nodes: Graph["nodes"],
@@ -51,11 +27,15 @@ function calculateNodeDimensions(
   const dimensions: Record<string, { width: number; height: number }> = {};
 
   for (const node of nodes) {
-    const height = Math.max(80, estimateNodeHeight(node, nodeWidth)); // Minimum 80px
-    dimensions[node.id] = { width: nodeWidth, height };
+    // Special case: INITIAL_STEP is a small StartNode button
+    if (node.id === "INITIAL_STEP") {
+      dimensions[node.id] = { width: 100, height: 44 };
+      continue;
+    }
+
+    dimensions[node.id] = { width: nodeWidth, height: FIXED_NODE_HEIGHT };
   }
 
-  console.log("[loadGraphData] Node dimensions:", dimensions);
   return dimensions;
 }
 
@@ -66,8 +46,8 @@ function ensureNodePositions(graph: Graph, nodeWidth: number): Graph {
     return graph;
   }
 
-  const horizontalGap = 150;
-  const verticalGap = 50;
+  const horizontalGap = 0;
+  const verticalGap = 0;
   const nodeDimensions = calculateNodeDimensions(graph.nodes, nodeWidth);
 
   const layoutResult = layoutGraph(graph.nodes, graph.edges, {
@@ -124,4 +104,5 @@ export function calculateInitialViewport(
   };
 }
 
-export const GRAPH_DATA = loadGraphData();
+// Set to null for empty canvas, or loadGraphData() to load from JSON
+export const GRAPH_DATA: ReturnType<typeof loadGraphData> = null;

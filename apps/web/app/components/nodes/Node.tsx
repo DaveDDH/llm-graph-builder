@@ -52,11 +52,14 @@ function AgentNodeComponent({ data, selected, id }: NodeProps) {
   const opacity = muted ? "opacity-40" : "opacity-100";
 
   const containerBaseStyle =
-    "rounded-lg border bg-white p-1 transition-opacity";
+    "rounded-lg border bg-white p-1 transition-opacity overflow-hidden";
   const containerClassname = `${containerBaseStyle} ${borderStyle} ${borderColor} ${opacity}`;
 
   return (
-    <div className={containerClassname} style={{ width: `${width}px` }}>
+    <div
+      className={containerClassname}
+      style={{ width: `${width}px`, minHeight: "220px", maxHeight: "220px" }}
+    >
       <Handles />
       <NodeHeader nodeKind={nodeKind} agent={nodeData.agent} />
       <Separator />

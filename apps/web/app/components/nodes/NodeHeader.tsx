@@ -16,22 +16,22 @@ const NodeHeaderComponent = ({ nodeKind, agent }: NodeHeaderProps) => {
 
   switch (nodeKind) {
     case "user_routing":
-      headerLabel = "User Routing";
+      headerLabel = "User";
       colorClass = "text-green-700";
       headerIcon = <MessageSquare className={`h-4 w-4 ${colorClass}`} />;
       break;
     case "agent_decision":
-      headerLabel = "Agent Decision";
+      headerLabel = "Decision";
       colorClass = "text-purple-700";
       headerIcon = <Brain className={`h-4 w-4 ${colorClass}`} />;
       break;
     case "tool_call":
-      headerLabel = "Tool Call";
+      headerLabel = "Tool";
       colorClass = "text-orange-700";
       headerIcon = <Wrench className={`h-4 w-4 ${colorClass}`} />;
       break;
     default:
-      headerLabel = "Agent Node";
+      headerLabel = "Agent";
       colorClass = "text-muted-foreground";
       headerIcon = <Bot className={`h-4 w-4 ${colorClass}`} />;
   }
