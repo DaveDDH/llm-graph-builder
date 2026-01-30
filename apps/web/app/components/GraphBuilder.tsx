@@ -72,25 +72,7 @@ function GraphBuilderInner() {
   const [tempEdge, setTempEdge] = useState<Edge | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [agents, setAgents] = useState<Agent[]>(GRAPH_DATA?.graph.agents ?? []);
-
-  // Agent management
-  const handleAddAgent = useCallback((agent: Agent) => {
-    setAgents((prev) => [...prev, agent]);
-  }, []);
-
-  const handleUpdateAgent = useCallback(
-    (id: string, updates: Partial<Omit<Agent, "id">>) => {
-      setAgents((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
-      );
-    },
-    []
-  );
-
-  const handleDeleteAgent = useCallback((id: string) => {
-    setAgents((prev) => prev.filter((a) => a.id !== id));
-  }, []);
+  const [agents] = useState<Agent[]>(GRAPH_DATA?.graph.agents ?? []);
 
   const onConnect = useCallback(
     (params: Connection) => {
