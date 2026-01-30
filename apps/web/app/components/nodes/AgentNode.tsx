@@ -215,11 +215,11 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
             className="absolute text-green-500"
             style={{ transform: "rotate(0deg)" }}
           />
-          <div className="absolute right-[1px]">
+          <div className="absolute right-[0px]">
             <svg
-              width={HANDLE_SIZE / 2}
+              width={HANDLE_SIZE + 2}
               height={HANDLE_SIZE + 2}
-              viewBox="1 -1.5 9 19"
+              viewBox="0 -1.5 0.05 19"
             >
               <path
                 d="M 0 -1 A 9 9 0 0 1 0 17 L 8 17 L 8 -1 Z"
