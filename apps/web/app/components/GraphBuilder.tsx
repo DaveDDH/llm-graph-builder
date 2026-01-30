@@ -102,6 +102,7 @@ function GraphBuilderInner() {
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
+      console.log("onNodesChange");
       const meaningfulChanges = changes.filter(
         (change) =>
           change.type === "position" ||
@@ -110,7 +111,10 @@ function GraphBuilderInner() {
       );
       if (meaningfulChanges.length === 0) return;
 
+      console.log(changes);
+      console.log(rfNodes);
       const newNodes = applyNodeChanges(changes, rfNodes);
+      console.log(newNodes);
       syncRFNodes(newNodes);
     },
     [rfNodes, syncRFNodes],
@@ -118,6 +122,7 @@ function GraphBuilderInner() {
 
   const onEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
+      console.log("onEdgesChange");
       applyEdgeChanges(changes, rfEdges);
     },
     [rfEdges],
@@ -125,6 +130,7 @@ function GraphBuilderInner() {
 
   const onConnect = useCallback(
     (params: Connection) => {
+      console.log("onConnect");
       if (params.source && params.target) {
         addEdge_({ from: params.source, to: params.target });
       }
@@ -134,21 +140,24 @@ function GraphBuilderInner() {
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: { id: string }) => {
-      setSelectedNodeId(node.id);
+      console.log("onNodeClick");
+      // setSelectedNodeId(node.id);
     },
     [setSelectedNodeId],
   );
 
   const onEdgeClick = useCallback(
     (_: React.MouseEvent, edge: { id: string }) => {
-      setSelectedEdgeId(edge.id);
+      console.log("onEdgeClick");
+      // setSelectedEdgeId(edge.id);
     },
     [setSelectedEdgeId],
   );
 
   const onPaneClick = useCallback(() => {
-    setSelectedNodeId(null);
-    setSelectedEdgeId(null);
+    console.log("onPaneClick");
+    // setSelectedNodeId(null);
+    // setSelectedEdgeId(null);
   }, [setSelectedNodeId, setSelectedEdgeId]);
 
   const getClosestEdge = useCallback(
@@ -199,6 +208,7 @@ function GraphBuilderInner() {
 
   const onNodeDrag = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      console.log("onNodeDrag");
       const closeEdge = getClosestEdge(node);
 
       if (closeEdge) {
@@ -219,6 +229,7 @@ function GraphBuilderInner() {
 
   const onNodeDragStop = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      console.log("onNodeDragStop");
       const closeEdge = getClosestEdge(node);
       setTempEdge(null);
 
