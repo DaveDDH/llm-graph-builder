@@ -1,27 +1,19 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
   Controls,
   useReactFlow,
   ReactFlowProvider,
+  useNodesState,
+  useEdgesState,
   useStoreApi,
+  addEdge,
   type Connection,
-  type OnNodesChange,
-  type OnEdgesChange,
   type Node,
   type Edge,
-  applyNodeChanges,
-  applyEdgeChanges,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { nanoid } from "nanoid";
@@ -31,134 +23,85 @@ import { edgeTypes } from "./edges";
 import { Toolbar } from "./panels/Toolbar";
 import { NodePanel } from "./panels/NodePanel";
 import { EdgePanel } from "./panels/EdgePanel";
-import { useGraphStore } from "../stores/graphStore";
 import { GraphSchema } from "../schemas/graph.schema";
-import { findInitialNodePosition, GRAPH_DATA } from "../utils/loadGraphData";
+import { GRAPH_DATA } from "../utils/loadGraphData";
+import {
+  schemaNodeToRFNode,
+  schemaEdgeToRFEdge,
+  rfEdgeToSchemaEdge,
+  type RFNodeData,
+  type RFEdgeData,
+} from "../utils/graphTransformers";
 
 const MIN_DISTANCE = 150;
 
-let didInit = false;
+// Initialize nodes and edges from graph data
+function createInitialNodes(): Node<RFNodeData>[] {
+  if (!GRAPH_DATA) return [];
+  return GRAPH_DATA.graph.nodes.map((n, i) => ({
+    ...schemaNodeToRFNode(n, i),
+    data: {
+      ...schemaNodeToRFNode(n, i).data,
+      nodeWidth: GRAPH_DATA.nodeWidth,
+    },
+  }));
+}
+
+function createInitialEdges(): Edge<RFEdgeData>[] {
+  if (!GRAPH_DATA) return [];
+  return GRAPH_DATA.graph.edges.map((e, i) =>
+    schemaEdgeToRFEdge(e, i, GRAPH_DATA.graph.nodes)
+  );
+}
+
+const initialNodes = createInitialNodes();
+const initialEdges = createInitialEdges();
 
 function GraphBuilderInner() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const store = useStoreApi();
   const { screenToFlowPosition, fitView, getInternalNode } = useReactFlow();
+
+  // React Flow as source of truth
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  // Local UI state
   const [tempEdge, setTempEdge] = useState<Edge | null>(null);
-  const [nodeWidth, setNodeWidth] = useState<number | null>(null);
-  const importGraph = useGraphStore((s) => s.importGraph);
-
-  const setSelectedNodeId = useGraphStore((s) => s.setSelectedNodeId);
-  const setSelectedEdgeId = useGraphStore((s) => s.setSelectedEdgeId);
-  const addNode = useGraphStore((s) => s.addNode);
-  const addEdge_ = useGraphStore((s) => s.addEdge);
-  const syncRFNodes = useGraphStore((s) => s.syncRFNodes);
-  const exportGraph = useGraphStore((s) => s.exportGraph);
-
-  const rfNodes = useGraphStore((s) => s.rfNodes);
-  const rfEdges = useGraphStore((s) => s.rfEdges);
-  const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
-  const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId);
-
-  const onNodeWidthResolved = useEffectEvent((calculatedWidth: number) => {
-    setNodeWidth(calculatedWidth);
-  });
-
-  // Load and validate graph.json on mount
-  useEffect(() => {
-    if (didInit || !GRAPH_DATA) return;
-    didInit = true;
-    const { graph, nodeWidth: calculatedWidth } = GRAPH_DATA;
-    onNodeWidthResolved(calculatedWidth);
-    importGraph(graph);
-    const initialPosition = findInitialNodePosition(graph);
-    console.log(initialPosition);
-  }, [importGraph]);
-
-  const nodesWithMuted = useMemo(
-    () =>
-      rfNodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          muted: selectedNodeId !== null && node.id !== selectedNodeId,
-          nodeWidth,
-        },
-      })),
-    [rfNodes, selectedNodeId, nodeWidth],
-  );
-
-  const edgesWithSelection = useMemo(
-    () =>
-      rfEdges.map((edge) => ({
-        ...edge,
-        selected: edge.id === selectedEdgeId,
-        data: {
-          ...edge.data,
-          muted: selectedNodeId !== null && edge.source !== selectedNodeId,
-        },
-      })),
-    [rfEdges, selectedEdgeId, selectedNodeId],
-  );
-
-  const onNodesChange: OnNodesChange = useCallback(
-    (changes) => {
-      console.log("onNodesChange");
-      const meaningfulChanges = changes.filter(
-        (change) =>
-          change.type === "position" ||
-          change.type === "remove" ||
-          change.type === "select",
-      );
-      if (meaningfulChanges.length === 0) return;
-
-      console.log(changes);
-      console.log(rfNodes);
-      const newNodes = applyNodeChanges(changes, rfNodes);
-      console.log(newNodes);
-      syncRFNodes(newNodes);
-    },
-    [rfNodes, syncRFNodes],
-  );
-
-  const onEdgesChange: OnEdgesChange = useCallback(
-    (changes) => {
-      console.log("onEdgesChange");
-      applyEdgeChanges(changes, rfEdges);
-    },
-    [rfEdges],
-  );
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   const onConnect = useCallback(
     (params: Connection) => {
       console.log("onConnect");
-      if (params.source && params.target) {
-        addEdge_({ from: params.source, to: params.target });
-      }
+      setEdges((eds) => addEdge({ ...params, type: "precondition" }, eds));
     },
-    [addEdge_],
+    [setEdges]
   );
 
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: { id: string }) => {
-      console.log("onNodeClick");
-      // setSelectedNodeId(node.id);
+    (_: React.MouseEvent, node: Node) => {
+      console.log("onNodeClick", node.id);
+      setSelectedNodeId(node.id);
+      setSelectedEdgeId(null);
     },
-    [setSelectedNodeId],
+    []
   );
 
   const onEdgeClick = useCallback(
-    (_: React.MouseEvent, edge: { id: string }) => {
-      console.log("onEdgeClick");
-      // setSelectedEdgeId(edge.id);
+    (_: React.MouseEvent, edge: Edge) => {
+      console.log("onEdgeClick", edge.id);
+      setSelectedEdgeId(edge.id);
+      setSelectedNodeId(null);
     },
-    [setSelectedEdgeId],
+    []
   );
 
   const onPaneClick = useCallback(() => {
     console.log("onPaneClick");
-    // setSelectedNodeId(null);
-    // setSelectedEdgeId(null);
-  }, [setSelectedNodeId, setSelectedEdgeId]);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  }, []);
 
   const getClosestEdge = useCallback(
     (node: Node) => {
@@ -184,7 +127,7 @@ function GraphBuilderInner() {
           }
           return res;
         },
-        { distance: Number.MAX_VALUE, node: null },
+        { distance: Number.MAX_VALUE, node: null }
       );
 
       if (!closestNode.node) {
@@ -203,17 +146,16 @@ function GraphBuilderInner() {
         target: closeNodeIsSource ? node.id : closestNode.node.id,
       };
     },
-    [store, getInternalNode],
+    [store, getInternalNode]
   );
 
   const onNodeDrag = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      console.log("onNodeDrag");
       const closeEdge = getClosestEdge(node);
 
       if (closeEdge) {
-        const edgeExists = rfEdges.some(
-          (e) => e.source === closeEdge.source && e.target === closeEdge.target,
+        const edgeExists = edges.some(
+          (e) => e.source === closeEdge.source && e.target === closeEdge.target
         );
         if (!edgeExists) {
           setTempEdge({ ...closeEdge, className: "temp opacity-50" });
@@ -224,7 +166,7 @@ function GraphBuilderInner() {
         setTempEdge(null);
       }
     },
-    [getClosestEdge, rfEdges],
+    [getClosestEdge, edges]
   );
 
   const onNodeDragStop = useCallback(
@@ -234,15 +176,17 @@ function GraphBuilderInner() {
       setTempEdge(null);
 
       if (closeEdge) {
-        const edgeExists = rfEdges.some(
-          (e) => e.source === closeEdge.source && e.target === closeEdge.target,
+        const edgeExists = edges.some(
+          (e) => e.source === closeEdge.source && e.target === closeEdge.target
         );
         if (!edgeExists) {
-          addEdge_({ from: closeEdge.source, to: closeEdge.target });
+          setEdges((eds) =>
+            addEdge({ ...closeEdge, type: "precondition" }, eds)
+          );
         }
       }
     },
-    [getClosestEdge, rfEdges, addEdge_],
+    [getClosestEdge, edges, setEdges]
   );
 
   const handleAddNode = useCallback(() => {
@@ -263,15 +207,21 @@ function GraphBuilderInner() {
       y: position.y - NODE_HEIGHT / 2,
     };
 
-    addNode({
+    const newNode: Node<RFNodeData> = {
       id,
-      text: "New node",
-      kind: "agent",
-      description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+      type: "agent",
       position: centeredPosition,
-    });
+      data: {
+        nodeId: id,
+        text: "New node",
+        description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        nodeWidth: GRAPH_DATA?.nodeWidth ?? 180,
+      },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
     setSelectedNodeId(id);
-  }, [addNode, screenToFlowPosition, setSelectedNodeId]);
+  }, [screenToFlowPosition, setNodes]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement("input");
@@ -286,7 +236,14 @@ function GraphBuilderInner() {
         const json = JSON.parse(text);
         const result = GraphSchema.safeParse(json);
         if (result.success) {
-          importGraph(result.data);
+          const newNodes = result.data.nodes.map((n, i) =>
+            schemaNodeToRFNode(n, i)
+          );
+          const newEdges = result.data.edges.map((e, i) =>
+            schemaEdgeToRFEdge(e, i, result.data.nodes)
+          );
+          setNodes(newNodes);
+          setEdges(newEdges);
           setTimeout(() => fitView({ padding: 0.2 }), 50);
         } else {
           alert("Invalid graph file: " + result.error.message);
@@ -296,10 +253,24 @@ function GraphBuilderInner() {
       }
     };
     input.click();
-  }, [importGraph, fitView]);
+  }, [setNodes, setEdges, fitView]);
 
   const handleExport = useCallback(() => {
-    const graph = exportGraph();
+    const graph = {
+      startNode: GRAPH_DATA?.graph.startNode ?? "",
+      agents: GRAPH_DATA?.graph.agents ?? [],
+      nodes: nodes.map((n) => ({
+        id: n.id,
+        text: (n.data as RFNodeData).text,
+        kind: n.type as "agent" | "agent_decision",
+        description: (n.data as RFNodeData).description,
+        agent: (n.data as RFNodeData).agent,
+        nextNodeIsUser: (n.data as RFNodeData).nextNodeIsUser,
+        position: n.position,
+      })),
+      edges: edges.map((e) => rfEdgeToSchemaEdge(e)),
+    };
+
     const result = GraphSchema.safeParse(graph);
     if (!result.success) {
       alert("Graph has validation errors. Please fix before exporting.");
@@ -313,7 +284,10 @@ function GraphBuilderInner() {
     a.download = "graph.json";
     a.click();
     URL.revokeObjectURL(url);
-  }, [exportGraph]);
+  }, [nodes, edges]);
+
+  // Combine edges with temp edge for display
+  const displayEdges = tempEdge ? [...edges, tempEdge] : edges;
 
   return (
     <div className="flex h-screen w-screen flex-col">
@@ -326,10 +300,8 @@ function GraphBuilderInner() {
       <div className="relative flex-1 overflow-hidden">
         <main ref={reactFlowWrapper} className="absolute inset-0">
           <ReactFlow
-            nodes={nodesWithMuted}
-            edges={
-              tempEdge ? [...edgesWithSelection, tempEdge] : edgesWithSelection
-            }
+            nodes={nodes}
+            edges={displayEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
