@@ -10,7 +10,6 @@ import { Handles } from "./Handles";
 
 function AgentNodeComponent({ data, selected, type }: NodeProps) {
   const nodeData = data as RFNodeData;
-  console.log(`[AgentNode] render ${nodeData.nodeId}`);
 
   const width = nodeData.nodeWidth ?? 180;
   const muted = nodeData.muted ?? false;

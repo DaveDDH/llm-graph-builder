@@ -1,7 +1,7 @@
 import type { Graph } from "../schemas/graph.schema";
 import { GraphSchema } from "../schemas/graph.schema";
 import { layoutGraph } from "./layoutGraph";
-import graphData from "../data/graph.json";
+import graphData from "../data/graph2.json";
 
 interface LoadGraphResult {
   graph: Graph;

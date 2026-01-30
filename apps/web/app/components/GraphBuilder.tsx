@@ -76,7 +76,6 @@ function GraphBuilderInner() {
 
   const onConnect = useCallback(
     (params: Connection) => {
-      console.log("onConnect");
       setEdges((eds) => addEdge({ ...params, type: "precondition" }, eds));
     },
     [setEdges]
@@ -84,7 +83,6 @@ function GraphBuilderInner() {
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      console.log("onNodeClick", node.id);
       setSelectedNodeId(node.id);
       setSelectedEdgeId(null);
     },
@@ -93,7 +91,6 @@ function GraphBuilderInner() {
 
   const onEdgeClick = useCallback(
     (_: React.MouseEvent, edge: Edge) => {
-      console.log("onEdgeClick", edge.id);
       setSelectedEdgeId(edge.id);
       setSelectedNodeId(null);
     },
@@ -101,7 +98,6 @@ function GraphBuilderInner() {
   );
 
   const onPaneClick = useCallback(() => {
-    console.log("onPaneClick");
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
   }, []);
@@ -174,7 +170,6 @@ function GraphBuilderInner() {
 
   const onNodeDragStop = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      console.log("onNodeDragStop");
       const closeEdge = getClosestEdge(node);
       setTempEdge(null);
 

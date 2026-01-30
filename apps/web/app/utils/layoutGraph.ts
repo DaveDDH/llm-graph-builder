@@ -14,7 +14,6 @@ export function layoutGraph(
   edges: Edge[],
   options: LayoutOptions = {}
 ): Node[] {
-  console.log(`[layoutGraph] called - nodes: ${nodes.length}, edges: ${edges.length}, options:`, options);
   const {
     horizontalSpacing = 300,
     verticalSpacing = 150,
