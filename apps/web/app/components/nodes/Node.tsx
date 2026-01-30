@@ -45,15 +45,19 @@ function AgentNodeComponent({ data, selected, id }: NodeProps) {
   const width = nodeData.nodeWidth ?? 180;
   const muted = nodeData.muted ?? false;
   const nodeKind = getNodeKind(id, edges);
-  const isDecision = nodeKind !== "agent";
+  const nextNodeIsUser = nodeData.nextNodeIsUser ?? false;
 
-  const borderStyle = isDecision ? "border-dashed" : "";
-  const borderColor = selected ? "border-primary" : "border-secondary";
+  const borderWidth = nextNodeIsUser ? "border-2" : "border";
+  const borderColor = nextNodeIsUser
+    ? "border-red-500"
+    : selected
+      ? "border-primary"
+      : "border-secondary";
   const opacity = muted ? "opacity-40" : "opacity-100";
 
   const containerBaseStyle =
-    "rounded-lg border bg-white p-1 transition-opacity overflow-hidden";
-  const containerClassname = `${containerBaseStyle} ${borderStyle} ${borderColor} ${opacity}`;
+    "rounded-lg bg-white p-1 transition-opacity overflow-hidden";
+  const containerClassname = `${containerBaseStyle} ${borderWidth} ${borderColor} ${opacity}`;
 
   return (
     <div
