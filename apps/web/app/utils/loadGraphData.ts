@@ -66,6 +66,16 @@ function ensureNodePositions(graph: Graph, nodeWidth: number): Graph {
   };
 }
 
+/**
+ * Process a validated graph: calculate node width and ensure positions.
+ * Use this for both hardcoded data and imported files.
+ */
+export function processGraph(graph: Graph): LoadGraphResult {
+  const nodeWidth = calculateNodeWidth(graph.nodes);
+  const processedGraph = ensureNodePositions(graph, nodeWidth);
+  return { graph: processedGraph, nodeWidth };
+}
+
 export function loadGraphData(): LoadGraphResult | null {
   const result = GraphSchema.safeParse(graphData);
 
@@ -77,10 +87,7 @@ export function loadGraphData(): LoadGraphResult | null {
     return null;
   }
 
-  const nodeWidth = calculateNodeWidth(result.data.nodes);
-  const graph = ensureNodePositions(result.data, nodeWidth);
-
-  return { graph, nodeWidth };
+  return processGraph(result.data);
 }
 
 export function findInitialNodePosition(

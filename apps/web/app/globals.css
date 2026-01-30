@@ -221,3 +221,8 @@
   stroke-dasharray: 5 5;
 }
 
+/* Hide React Flow attribution */
+.react-flow__attribution {
+  display: none;
+}
+

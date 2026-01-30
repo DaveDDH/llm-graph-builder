@@ -1,6 +1,6 @@
 "use client";
 
-import { Upload, Download, Plus } from "lucide-react";
+import { Upload, Download, Plus, WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ToolbarProps {
@@ -9,20 +9,17 @@ interface ToolbarProps {
   onExport: () => void;
 }
 
-export function Toolbar({ onAddNode, onImport, onExport }: ToolbarProps) {
+export function Toolbar({ onImport, onExport }: ToolbarProps) {
   return (
-    <header className="flex items-center justify-center gap-6 border-b bg-background px-4 py-3">
-      <Button variant="outline" size="sm" onClick={onAddNode}>
-        <Plus className="h-4 w-4" />
-        Add node
-      </Button>
-      <Button variant="outline" size="sm" onClick={onImport}>
+    <header className="absolute z-1 flex items-center justify-center gap-2 border rounded-lg bg-background p-1 top-2 shadow-lg">
+      <Button className="h-8 w-8" variant="ghost" size="sm" onClick={onImport}>
         <Upload className="h-4 w-4" />
-        Import
       </Button>
-      <Button variant="outline" size="sm" onClick={onExport}>
+      <Button className="h-8 w-8" variant="ghost" size="sm" onClick={onExport}>
         <Download className="h-4 w-4" />
-        Export
+      </Button>
+      <Button className="h-8 w-8" variant="ghost" size="sm">
+        <WandSparkles className="h-4 w-4" />
       </Button>
     </header>
   );

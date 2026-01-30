@@ -27,6 +27,7 @@ import { EdgePanel } from "./panels/EdgePanel";
 import { GraphSchema, type Agent } from "../schemas/graph.schema";
 import {
   GRAPH_DATA,
+  processGraph,
   findInitialNodePosition,
   calculateInitialViewport,
 } from "../utils/loadGraphData";
@@ -45,7 +46,7 @@ const START_NODE_ID = "INITIAL_STEP";
 const defaultStartNode: Node<RFNodeData> = {
   id: START_NODE_ID,
   type: "start",
-  position: { x: 50, y: 200 },
+  position: { x: -50, y: 200 },
   selectable: false,
   draggable: false,
   data: {
@@ -100,11 +101,14 @@ function GraphBuilderInner() {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [agents] = useState<Agent[]>(GRAPH_DATA?.graph.agents ?? []);
 
-  // Set initial viewport to show INITIAL_STEP
+  // Set initial viewport to center start node vertically
   useEffect(() => {
-    if (!GRAPH_DATA || !reactFlowWrapper.current) return;
+    if (!reactFlowWrapper.current) return;
 
-    const initialPos = findInitialNodePosition(GRAPH_DATA.graph);
+    const initialPos = GRAPH_DATA
+      ? findInitialNodePosition(GRAPH_DATA.graph)
+      : defaultStartNode.position;
+
     if (initialPos) {
       const containerHeight = reactFlowWrapper.current.clientHeight;
       const viewport = calculateInitialViewport(initialPos, containerHeight);
@@ -268,22 +272,39 @@ function GraphBuilderInner() {
         const json = JSON.parse(text);
         const result = GraphSchema.safeParse(json);
         if (result.success) {
-          const newNodes = result.data.nodes.map((n, i) => {
+          // Process graph with layout (same as hardcoded load)
+          const { graph, nodeWidth } = processGraph(result.data);
+
+          const newNodes = graph.nodes.map((n, i) => {
             const baseNode = schemaNodeToRFNode(n, i);
             const isStartNode = n.id === START_NODE_ID;
             return {
               ...baseNode,
               type: isStartNode ? "start" : baseNode.type,
               selectable: !isStartNode,
-              draggable: !isStartNode,
+              draggable: false,
+              data: {
+                ...baseNode.data,
+                nodeWidth,
+              },
             };
           });
-          const newEdges = result.data.edges.map((e, i) =>
-            schemaEdgeToRFEdge(e, i, result.data.nodes),
+          const newEdges = graph.edges.map((e, i) =>
+            schemaEdgeToRFEdge(e, i, graph.nodes),
           );
           setNodes(newNodes);
           setEdges(newEdges);
-          setTimeout(() => fitView({ padding: 0.2 }), 50);
+
+          // Set viewport to center INITIAL_STEP
+          setTimeout(() => {
+            if (!reactFlowWrapper.current) return;
+            const initialPos = findInitialNodePosition(graph);
+            if (initialPos) {
+              const containerHeight = reactFlowWrapper.current.clientHeight;
+              const viewport = calculateInitialViewport(initialPos, containerHeight);
+              setViewport(viewport);
+            }
+          }, 50);
         } else {
           alert("Invalid graph file: " + result.error.message);
         }
@@ -292,7 +313,7 @@ function GraphBuilderInner() {
       }
     };
     input.click();
-  }, [setNodes, setEdges, fitView]);
+  }, [setNodes, setEdges, setViewport]);
 
   const handleExport = useCallback(() => {
     const graph = {
@@ -332,14 +353,14 @@ function GraphBuilderInner() {
   const displayEdges = tempEdge ? [...edges, tempEdge] : edges;
 
   return (
-    <div className="flex h-screen w-screen flex-col">
+    <div className="flex h-screen w-screen flex-col items-center">
       <Toolbar
         onAddNode={handleAddNode}
         onImport={handleImport}
         onExport={handleExport}
       />
 
-      <div className="relative flex-1 overflow-hidden">
+      <div className="h-screen w-screen relative flex-1 overflow-hidden">
         <main ref={reactFlowWrapper} className="absolute inset-0">
           <ReactFlow
             nodes={nodes}
