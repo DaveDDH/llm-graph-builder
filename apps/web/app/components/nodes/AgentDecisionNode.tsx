@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { GitBranch, ChevronLast, ArrowRight } from "lucide-react";
+import { GitBranch, ArrowRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import type { RFNodeData } from "../../utils/graphTransformers";
@@ -15,7 +15,6 @@ function AgentDecisionNodeComponent({ data, selected }: NodeProps) {
 
   const width = nodeData.nodeWidth ?? 180;
   const borderColor = selected ? "var(--primary)" : "var(--secondary)";
-  const iconColor = selected ? "var(--primary)" : "var(--secondary)";
 
   return (
     <div
@@ -24,24 +23,29 @@ function AgentDecisionNodeComponent({ data, selected }: NodeProps) {
       } ${nodeData.muted ? "opacity-40" : "opacity-100"}`}
       style={{ width: `${width}px` }}
     >
-      {/* Top handles - bottom left and bottom right corners */}
+      {/* Top handles */}
       <Handle
         type="target"
         position={Position.Top}
         id="top-target"
         style={{
           borderColor,
-          backgroundColor: "white",
+          backgroundColor: "var(--xy-background-color)",
           width: `${HANDLE_SIZE}px`,
           height: `${HANDLE_SIZE}px`,
           left: "35%",
-          borderRadius: "0 0 0 4px",
+          borderWidth: 0,
+          borderBottomWidth: "1px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ChevronLast size={ICON_SIZE} style={{ color: iconColor, transform: "rotate(90deg)" }} />
+        <ArrowRight
+          size={ICON_SIZE}
+          className="text-red-400"
+          style={{ transform: "rotate(90deg)" }}
+        />
       </Handle>
       <Handle
         type="source"
@@ -53,33 +57,43 @@ function AgentDecisionNodeComponent({ data, selected }: NodeProps) {
           width: `${HANDLE_SIZE}px`,
           height: `${HANDLE_SIZE}px`,
           left: "65%",
-          borderRadius: "0 0 4px 0",
+          borderWidth: 0,
+          borderTopWidth: "1px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ArrowRight size={ICON_SIZE} style={{ color: iconColor, transform: "rotate(-90deg)" }} />
+        <ArrowRight
+          size={ICON_SIZE}
+          className="text-green-500"
+          style={{ transform: "rotate(-90deg)" }}
+        />
       </Handle>
 
-      {/* Bottom handles - top left and top right corners */}
+      {/* Bottom handles */}
       <Handle
         type="target"
         position={Position.Bottom}
         id="bottom-target"
         style={{
           borderColor,
-          backgroundColor: "white",
+          backgroundColor: "var(--xy-background-color)",
           width: `${HANDLE_SIZE}px`,
           height: `${HANDLE_SIZE}px`,
           left: "35%",
-          borderRadius: "4px 0 0 0",
+          borderWidth: 0,
+          borderTopWidth: "1px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ChevronLast size={ICON_SIZE} style={{ color: iconColor, transform: "rotate(-90deg)" }} />
+        <ArrowRight
+          size={ICON_SIZE}
+          className="text-red-400"
+          style={{ transform: "rotate(-90deg)" }}
+        />
       </Handle>
       <Handle
         type="source"
@@ -91,33 +105,43 @@ function AgentDecisionNodeComponent({ data, selected }: NodeProps) {
           width: `${HANDLE_SIZE}px`,
           height: `${HANDLE_SIZE}px`,
           left: "65%",
-          borderRadius: "0 4px 0 0",
+          borderWidth: 0,
+          borderBottomWidth: "1px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ArrowRight size={ICON_SIZE} style={{ color: iconColor, transform: "rotate(90deg)" }} />
+        <ArrowRight
+          size={ICON_SIZE}
+          className="text-green-500"
+          style={{ transform: "rotate(90deg)" }}
+        />
       </Handle>
 
-      {/* Left handles - top right and bottom right corners */}
+      {/* Left handles */}
       <Handle
         type="target"
         position={Position.Left}
         id="left-target"
         style={{
           borderColor,
-          backgroundColor: "white",
+          backgroundColor: "var(--xy-background-color)",
           width: `${HANDLE_SIZE}px`,
           height: `${HANDLE_SIZE}px`,
           top: "35%",
-          borderRadius: "0 4px 0 0",
+          borderWidth: 0,
+          borderRightWidth: "1px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ChevronLast size={ICON_SIZE} style={{ color: iconColor, transform: "rotate(0deg)" }} />
+        <ArrowRight
+          size={ICON_SIZE}
+          className="text-red-400"
+          style={{ transform: "rotate(0deg)" }}
+        />
       </Handle>
       <Handle
         type="source"
@@ -129,33 +153,43 @@ function AgentDecisionNodeComponent({ data, selected }: NodeProps) {
           width: `${HANDLE_SIZE}px`,
           height: `${HANDLE_SIZE}px`,
           top: "65%",
-          borderRadius: "0 0 4px 0",
+          borderWidth: 0,
+          borderLeftWidth: "1px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ArrowRight size={ICON_SIZE} style={{ color: iconColor, transform: "rotate(180deg)" }} />
+        <ArrowRight
+          size={ICON_SIZE}
+          className="text-green-500"
+          style={{ transform: "rotate(180deg)" }}
+        />
       </Handle>
 
-      {/* Right handles - top left and bottom left corners */}
+      {/* Right handles */}
       <Handle
         type="target"
         position={Position.Right}
         id="right-target"
         style={{
           borderColor,
-          backgroundColor: "white",
+          backgroundColor: "var(--xy-background-color)",
           width: `${HANDLE_SIZE}px`,
           height: `${HANDLE_SIZE}px`,
           top: "35%",
-          borderRadius: "4px 0 0 0",
+          borderWidth: 0,
+          borderLeftWidth: "1px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ChevronLast size={ICON_SIZE} style={{ color: iconColor, transform: "rotate(180deg)" }} />
+        <ArrowRight
+          size={ICON_SIZE}
+          className="text-red-400"
+          style={{ transform: "rotate(180deg)" }}
+        />
       </Handle>
       <Handle
         type="source"
@@ -167,13 +201,18 @@ function AgentDecisionNodeComponent({ data, selected }: NodeProps) {
           width: `${HANDLE_SIZE}px`,
           height: `${HANDLE_SIZE}px`,
           top: "65%",
-          borderRadius: "0 0 0 4px",
+          borderWidth: 0,
+          borderRightWidth: "1px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ArrowRight size={ICON_SIZE} style={{ color: iconColor, transform: "rotate(0deg)" }} />
+        <ArrowRight
+          size={ICON_SIZE}
+          className="text-green-500"
+          style={{ transform: "rotate(0deg)" }}
+        />
       </Handle>
 
       {/* Header */}
