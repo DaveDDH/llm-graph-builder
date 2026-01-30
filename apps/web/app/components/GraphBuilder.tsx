@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ReactFlow,
   Background,
@@ -26,78 +33,46 @@ import { NodePanel } from "./panels/NodePanel";
 import { EdgePanel } from "./panels/EdgePanel";
 import { useGraphStore } from "../stores/graphStore";
 import { GraphSchema } from "../schemas/graph.schema";
-import { layoutGraph } from "../utils/layoutGraph";
-import graphData from "../data/graph.json";
+import { findInitialNodePosition, GRAPH_DATA } from "../utils/loadGraphData";
 
 const MIN_DISTANCE = 150;
+
+let didInit = false;
 
 function GraphBuilderInner() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const store = useStoreApi();
-  const { screenToFlowPosition, fitView, getViewport, getInternalNode, setViewport } = useReactFlow();
+  const { screenToFlowPosition, fitView, getInternalNode } = useReactFlow();
   const [tempEdge, setTempEdge] = useState<Edge | null>(null);
   const [nodeWidth, setNodeWidth] = useState<number | null>(null);
   const importGraph = useGraphStore((s) => s.importGraph);
 
-  // Load and validate graph.json on mount
-  useEffect(() => {
-    const result = GraphSchema.safeParse(graphData);
-    if (result.success) {
-      // Calculate node width based on longest ID
-      const maxIdLength = Math.max(...result.data.nodes.map((n) => n.id.length));
-      const nodePadding = 40;
-      const calculatedWidth = maxIdLength * 7.5 + nodePadding;
-      setNodeWidth(calculatedWidth);
-
-      // Check if nodes have positions
-      const hasPositions = result.data.nodes.every(
-        (node) => node.position !== undefined
-      );
-
-      // Calculate positions if nodes don't have them
-      let graphToImport = result.data;
-      if (!hasPositions) {
-        const horizontalGap = 150;
-        const verticalGap = 150;
-        const nodeHeight = 80;
-        const nodesWithPositions = layoutGraph(result.data.nodes, result.data.edges, {
-          horizontalSpacing: calculatedWidth + horizontalGap,
-          verticalSpacing: nodeHeight + verticalGap,
-        });
-        graphToImport = {
-          ...result.data,
-          nodes: nodesWithPositions,
-        };
-      }
-
-      importGraph(graphToImport);
-
-      // Position viewport so INITIAL_STEP is centered vertically and aligned left
-      setTimeout(() => {
-        const initialNode = graphToImport.nodes.find((n) => n.id === "INITIAL_STEP");
-        if (initialNode?.position && reactFlowWrapper.current) {
-          const { height } = reactFlowWrapper.current.getBoundingClientRect();
-          const nodeHeight = 120;
-          const padding = 50;
-
-          setViewport({
-            x: -initialNode.position.x + padding,
-            y: -initialNode.position.y + height / 2 - nodeHeight / 2,
-            zoom: 1,
-          });
-        } else {
-          fitView({ padding: 0.2 });
-        }
-      }, 100);
-    } else {
-      console.error("[GraphBuilder] Graph validation failed:", result.error.format());
-    }
-  }, [importGraph, fitView, setViewport]);
+  const setSelectedNodeId = useGraphStore((s) => s.setSelectedNodeId);
+  const setSelectedEdgeId = useGraphStore((s) => s.setSelectedEdgeId);
+  const addNode = useGraphStore((s) => s.addNode);
+  const addEdge_ = useGraphStore((s) => s.addEdge);
+  const syncRFNodes = useGraphStore((s) => s.syncRFNodes);
+  const exportGraph = useGraphStore((s) => s.exportGraph);
 
   const rfNodes = useGraphStore((s) => s.rfNodes);
   const rfEdges = useGraphStore((s) => s.rfEdges);
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
   const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId);
+
+  const onNodeWidthResolved = useEffectEvent((calculatedWidth: number) => {
+    setNodeWidth(calculatedWidth);
+  });
+
+  // Load and validate graph.json on mount
+  useEffect(() => {
+    if (didInit || !GRAPH_DATA) return;
+    didInit = true;
+    const { graph, nodeWidth: calculatedWidth } = GRAPH_DATA;
+    onNodeWidthResolved(calculatedWidth);
+    importGraph(graph);
+    const initialPosition = findInitialNodePosition(graph);
+    console.log(initialPosition);
+  }, [importGraph]);
 
   const nodesWithMuted = useMemo(
     () =>
@@ -109,7 +84,7 @@ function GraphBuilderInner() {
           nodeWidth,
         },
       })),
-    [rfNodes, selectedNodeId, nodeWidth]
+    [rfNodes, selectedNodeId, nodeWidth],
   );
 
   const edgesWithSelection = useMemo(
@@ -122,15 +97,8 @@ function GraphBuilderInner() {
           muted: selectedNodeId !== null && edge.source !== selectedNodeId,
         },
       })),
-    [rfEdges, selectedEdgeId, selectedNodeId]
+    [rfEdges, selectedEdgeId, selectedNodeId],
   );
-
-  const setSelectedNodeId = useGraphStore((s) => s.setSelectedNodeId);
-  const setSelectedEdgeId = useGraphStore((s) => s.setSelectedEdgeId);
-  const addNode = useGraphStore((s) => s.addNode);
-  const addEdge_ = useGraphStore((s) => s.addEdge);
-  const syncRFNodes = useGraphStore((s) => s.syncRFNodes);
-  const exportGraph = useGraphStore((s) => s.exportGraph);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
@@ -138,21 +106,21 @@ function GraphBuilderInner() {
         (change) =>
           change.type === "position" ||
           change.type === "remove" ||
-          change.type === "select"
+          change.type === "select",
       );
       if (meaningfulChanges.length === 0) return;
 
       const newNodes = applyNodeChanges(changes, rfNodes);
       syncRFNodes(newNodes);
     },
-    [rfNodes, syncRFNodes]
+    [rfNodes, syncRFNodes],
   );
 
   const onEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
       applyEdgeChanges(changes, rfEdges);
     },
-    [rfEdges]
+    [rfEdges],
   );
 
   const onConnect = useCallback(
@@ -161,21 +129,21 @@ function GraphBuilderInner() {
         addEdge_({ from: params.source, to: params.target });
       }
     },
-    [addEdge_]
+    [addEdge_],
   );
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: { id: string }) => {
       setSelectedNodeId(node.id);
     },
-    [setSelectedNodeId]
+    [setSelectedNodeId],
   );
 
   const onEdgeClick = useCallback(
     (_: React.MouseEvent, edge: { id: string }) => {
       setSelectedEdgeId(edge.id);
     },
-    [setSelectedEdgeId]
+    [setSelectedEdgeId],
   );
 
   const onPaneClick = useCallback(() => {
@@ -207,7 +175,7 @@ function GraphBuilderInner() {
           }
           return res;
         },
-        { distance: Number.MAX_VALUE, node: null }
+        { distance: Number.MAX_VALUE, node: null },
       );
 
       if (!closestNode.node) {
@@ -226,7 +194,7 @@ function GraphBuilderInner() {
         target: closeNodeIsSource ? node.id : closestNode.node.id,
       };
     },
-    [store, getInternalNode]
+    [store, getInternalNode],
   );
 
   const onNodeDrag = useCallback(
@@ -235,7 +203,7 @@ function GraphBuilderInner() {
 
       if (closeEdge) {
         const edgeExists = rfEdges.some(
-          (e) => e.source === closeEdge.source && e.target === closeEdge.target
+          (e) => e.source === closeEdge.source && e.target === closeEdge.target,
         );
         if (!edgeExists) {
           setTempEdge({ ...closeEdge, className: "temp opacity-50" });
@@ -246,7 +214,7 @@ function GraphBuilderInner() {
         setTempEdge(null);
       }
     },
-    [getClosestEdge, rfEdges]
+    [getClosestEdge, rfEdges],
   );
 
   const onNodeDragStop = useCallback(
@@ -256,14 +224,14 @@ function GraphBuilderInner() {
 
       if (closeEdge) {
         const edgeExists = rfEdges.some(
-          (e) => e.source === closeEdge.source && e.target === closeEdge.target
+          (e) => e.source === closeEdge.source && e.target === closeEdge.target,
         );
         if (!edgeExists) {
           addEdge_({ from: closeEdge.source, to: closeEdge.target });
         }
       }
     },
-    [getClosestEdge, rfEdges, addEdge_]
+    [getClosestEdge, rfEdges, addEdge_],
   );
 
   const handleAddNode = useCallback(() => {
@@ -292,7 +260,7 @@ function GraphBuilderInner() {
       position: centeredPosition,
     });
     setSelectedNodeId(id);
-  }, [addNode, setSelectedNodeId, screenToFlowPosition]);
+  }, [addNode, screenToFlowPosition, setSelectedNodeId]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement("input");
@@ -338,13 +306,19 @@ function GraphBuilderInner() {
 
   return (
     <div className="flex h-screen w-screen flex-col">
-      <Toolbar onAddNode={handleAddNode} onImport={handleImport} onExport={handleExport} />
+      <Toolbar
+        onAddNode={handleAddNode}
+        onImport={handleImport}
+        onExport={handleExport}
+      />
 
       <div className="relative flex-1 overflow-hidden">
         <main ref={reactFlowWrapper} className="absolute inset-0">
           <ReactFlow
             nodes={nodesWithMuted}
-            edges={tempEdge ? [...edgesWithSelection, tempEdge] : edgesWithSelection}
+            edges={
+              tempEdge ? [...edgesWithSelection, tempEdge] : edgesWithSelection
+            }
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
