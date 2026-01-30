@@ -1,19 +1,51 @@
 "use client";
 
 import { memo } from "react";
-import { type NodeProps } from "@xyflow/react";
+import { type NodeProps, useEdges } from "@xyflow/react";
 import { Separator } from "@/components/ui/separator";
-import type { RFNodeData } from "../../utils/graphTransformers";
-import { NodeHeader } from "./NodeHeader";
+import type { RFNodeData, RFEdgeData } from "../../utils/graphTransformers";
+import { NodeHeader, type NodeKind } from "./NodeHeader";
 import { NodeBody } from "./NodeBody";
 import { Handles } from "./Handles";
+import type { Edge } from "@xyflow/react";
 
-function AgentNodeComponent({ data, selected, type }: NodeProps) {
+function getNodeKind(nodeId: string, edges: Edge<RFEdgeData>[]): NodeKind {
+  // Find outgoing edges from this node
+  const outgoingEdges = edges.filter((e) => e.source === nodeId);
+
+  // If no outgoing edges, it's an agent node
+  if (outgoingEdges.length === 0) {
+    return "agent";
+  }
+
+  // Check preconditions on outgoing edges
+  for (const edge of outgoingEdges) {
+    const preconditions = edge.data?.preconditions;
+    if (preconditions && preconditions.length > 0) {
+      const preconditionType = preconditions[0].type;
+      switch (preconditionType) {
+        case "user_said":
+          return "user_routing";
+        case "agent_decision":
+          return "agent_decision";
+        case "tool_call":
+          return "tool_call";
+      }
+    }
+  }
+
+  // No preconditions on outgoing edges
+  return "agent";
+}
+
+function AgentNodeComponent({ data, selected, id }: NodeProps) {
   const nodeData = data as RFNodeData;
+  const edges = useEdges<Edge<RFEdgeData>>();
 
   const width = nodeData.nodeWidth ?? 180;
   const muted = nodeData.muted ?? false;
-  const isDecision = type === "agent_decision";
+  const nodeKind = getNodeKind(id, edges);
+  const isDecision = nodeKind !== "agent";
 
   const borderStyle = isDecision ? "border-dashed" : "";
   const borderColor = selected ? "border-primary" : "border-secondary";
@@ -26,7 +58,7 @@ function AgentNodeComponent({ data, selected, type }: NodeProps) {
   return (
     <div className={containerClassname} style={{ width: `${width}px` }}>
       <Handles />
-      <NodeHeader isDecision={isDecision} agent={nodeData.agent} />
+      <NodeHeader nodeKind={nodeKind} agent={nodeData.agent} />
       <Separator />
       <NodeBody nodeId={nodeData.nodeId} description={nodeData.description} />
     </div>

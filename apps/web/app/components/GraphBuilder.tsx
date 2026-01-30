@@ -34,18 +34,40 @@ import {
 } from "../utils/graphTransformers";
 
 const MIN_DISTANCE = 150;
+const START_NODE_ID = "INITIAL_STEP";
+
+// Default start node for blank canvas
+const defaultStartNode: Node<RFNodeData> = {
+  id: START_NODE_ID,
+  type: "start",
+  position: { x: 50, y: 200 },
+  selectable: false,
+  draggable: false,
+  data: {
+    nodeId: START_NODE_ID,
+    text: "",
+    description: "",
+  },
+};
 
 // Initialize nodes and edges from graph data
 function createInitialNodes(): Node<RFNodeData>[] {
-  if (!GRAPH_DATA) return [];
+  if (!GRAPH_DATA) return [defaultStartNode];
   const { graph, nodeWidth } = GRAPH_DATA;
-  return graph.nodes.map((n, i) => ({
-    ...schemaNodeToRFNode(n, i),
-    data: {
-      ...schemaNodeToRFNode(n, i).data,
-      nodeWidth,
-    },
-  }));
+  return graph.nodes.map((n, i) => {
+    const baseNode = schemaNodeToRFNode(n, i);
+    const isStartNode = n.id === START_NODE_ID;
+    return {
+      ...baseNode,
+      type: isStartNode ? "start" : baseNode.type,
+      selectable: !isStartNode,
+      draggable: !isStartNode,
+      data: {
+        ...baseNode.data,
+        nodeWidth,
+      },
+    };
+  });
 }
 
 function createInitialEdges(): Edge<RFEdgeData>[] {
@@ -83,6 +105,8 @@ function GraphBuilderInner() {
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      // Don't select the start node
+      if (node.id === START_NODE_ID) return;
       setSelectedNodeId(node.id);
       setSelectedEdgeId(null);
     },
@@ -234,9 +258,16 @@ function GraphBuilderInner() {
         const json = JSON.parse(text);
         const result = GraphSchema.safeParse(json);
         if (result.success) {
-          const newNodes = result.data.nodes.map((n, i) =>
-            schemaNodeToRFNode(n, i)
-          );
+          const newNodes = result.data.nodes.map((n, i) => {
+            const baseNode = schemaNodeToRFNode(n, i);
+            const isStartNode = n.id === START_NODE_ID;
+            return {
+              ...baseNode,
+              type: isStartNode ? "start" : baseNode.type,
+              selectable: !isStartNode,
+              draggable: !isStartNode,
+            };
+          });
           const newEdges = result.data.edges.map((e, i) =>
             schemaEdgeToRFEdge(e, i, result.data.nodes)
           );
@@ -255,12 +286,13 @@ function GraphBuilderInner() {
 
   const handleExport = useCallback(() => {
     const graph = {
-      startNode: GRAPH_DATA?.graph.startNode ?? "",
+      startNode: START_NODE_ID,
       agents,
       nodes: nodes.map((n) => ({
         id: n.id,
         text: (n.data as RFNodeData).text,
-        kind: n.type as "agent" | "agent_decision",
+        // Start node exports as "agent" kind for schema compatibility
+        kind: (n.type === "start" ? "agent" : n.type) as "agent" | "agent_decision",
         description: (n.data as RFNodeData).description,
         agent: (n.data as RFNodeData).agent,
         nextNodeIsUser: (n.data as RFNodeData).nextNodeIsUser,
