@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LLM Graph",
+  title: "Flowforge",
   description: "LLM State machine builder",
 };
 
