@@ -24,11 +24,10 @@ import type { Node } from "@xyflow/react";
 
 interface NodePanelProps {
   nodeId: string;
-  agents: Array<{ id: string; description: string }>;
   onNodeDeleted?: () => void;
 }
 
-export function NodePanel({ nodeId, agents, onNodeDeleted }: NodePanelProps) {
+export function NodePanel({ nodeId, onNodeDeleted }: NodePanelProps) {
   const nodes = useNodes<Node<RFNodeData>>();
   const { setNodes, setEdges } = useReactFlow();
 
@@ -167,24 +166,6 @@ export function NodePanel({ nodeId, agents, onNodeDeleted }: NodePanelProps) {
               rows={2}
               placeholder="Node description..."
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="agent">Agent</Label>
-            <select
-              id="agent"
-              value={nodeData.agent ?? ""}
-              onChange={(e) => updateNodeData({ agent: e.target.value || undefined })}
-              disabled={agents.length === 0}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Select agent...</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.id}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="space-y-2">

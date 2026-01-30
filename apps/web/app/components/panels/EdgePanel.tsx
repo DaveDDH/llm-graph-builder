@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, Plus, X } from "lucide-react";
+import { Trash2, Plus, X, Info } from "lucide-react";
 import { useEdges, useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,31 +14,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Card } from "@/components/ui/card";
-import type { Precondition, PreconditionType } from "../../schemas/graph.schema";
+import type {
+  Precondition,
+  PreconditionType,
+} from "../../schemas/graph.schema";
 import type { RFEdgeData } from "../../utils/graphTransformers";
 import type { Edge } from "@xyflow/react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+
+const START_NODE_ID = "INITIAL_STEP";
 
 interface EdgePanelProps {
   edgeId: string;
   onEdgeDeleted?: () => void;
 }
 
+interface EdgePreconditionInput {
+  value: string;
+  description: string;
+}
+
 export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
   const edges = useEdges<Edge<RFEdgeData>>();
   const { setEdges } = useReactFlow();
 
-  // Parse edge ID to get source and target
-  const edgeIdParts = edgeId.split("-");
-  const from = edgeIdParts[0];
-  const to = edgeIdParts[1];
-
-  const edge = edges.find((e) => e.source === from && e.target === to);
+  // Find edge by ID
+  const edge = edges.find((e) => e.id === edgeId);
+  const from = edge?.source ?? "";
+  const to = edge?.target ?? "";
   const edgeData = edge?.data;
 
   const [prevEdgeId, setPrevEdgeId] = useState(edgeId);
   const [preconditions, setPreconditions] = useState<Precondition[]>(
-    edgeData?.preconditions ?? []
+    edgeData?.preconditions ?? [],
   );
   const [isAddingPrecondition, setIsAddingPrecondition] = useState(false);
   const [newPreconditionType, setNewPreconditionType] =
@@ -46,13 +67,18 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
   const [newPreconditionValue, setNewPreconditionValue] = useState("");
   const [newPreconditionDescription, setNewPreconditionDescription] =
     useState("");
+  const [showTypeChangeConfirm, setShowTypeChangeConfirm] = useState(false);
+
+  // State for multi-edge precondition inputs (keyed by edge ID)
+  const [multiEdgeInputs, setMultiEdgeInputs] = useState<
+    Record<string, EdgePreconditionInput>
+  >({});
 
   // Reset form when selecting a different edge
   if (edgeId !== prevEdgeId) {
     setPrevEdgeId(edgeId);
-    const currentEdge = edges.find((e) => e.source === from && e.target === to);
-    if (currentEdge?.data) {
-      setPreconditions(currentEdge.data.preconditions ?? []);
+    if (edge?.data) {
+      setPreconditions(edge.data.preconditions ?? []);
     }
   }
 
@@ -61,18 +87,25 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
   }
 
   const existingType = preconditions.length > 0 ? preconditions[0].type : null;
+  const isFromStartNode = from === START_NODE_ID;
+
+  // Find other edges from the same source
+  const siblingEdges = edges.filter(
+    (e) => e.source === from && e.id !== edge.id,
+  );
+
+  // All edges from same source (current + siblings)
+  const allSourceEdges = [edge, ...siblingEdges];
 
   const updateEdgeData = (updates: Partial<RFEdgeData>) => {
     setEdges((eds) =>
       eds.map((e) =>
-        e.id === edge.id
-          ? { ...e, data: { ...e.data, ...updates } }
-          : e
-      )
+        e.id === edge.id ? { ...e, data: { ...e.data, ...updates } } : e,
+      ),
     );
   };
 
-  const handleAddPrecondition = () => {
+  const doAddPrecondition = () => {
     if (newPreconditionValue.trim()) {
       const newPrecondition: Precondition = {
         type: existingType ?? newPreconditionType,
@@ -86,6 +119,58 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
       setNewPreconditionDescription("");
       setIsAddingPrecondition(false);
     }
+  };
+
+  const handleAddPrecondition = () => {
+    doAddPrecondition();
+  };
+
+  const initializeMultiEdgeInputs = () => {
+    const inputs: Record<string, EdgePreconditionInput> = {};
+    for (const e of allSourceEdges) {
+      inputs[e.id] = { value: "", description: "" };
+    }
+    setMultiEdgeInputs(inputs);
+  };
+
+  const handleConfirmTypeChange = () => {
+    // Add preconditions to all edges from the same source
+    setEdges((eds) =>
+      eds.map((e) => {
+        const input = multiEdgeInputs[e.id];
+        if (input && input.value.trim()) {
+          const newPrecondition: Precondition = {
+            type: newPreconditionType,
+            value: input.value.trim(),
+            description: input.description.trim(),
+          };
+          const existingPreconditions =
+            (e.data?.preconditions as Precondition[] | undefined) ?? [];
+          return {
+            ...e,
+            data: {
+              ...e.data,
+              preconditions: [...existingPreconditions, newPrecondition],
+            },
+          };
+        }
+        return e;
+      }),
+    );
+
+    // Update local state for current edge
+    const currentInput = multiEdgeInputs[edge.id];
+    if (currentInput && currentInput.value.trim()) {
+      const newPrecondition: Precondition = {
+        type: newPreconditionType,
+        value: currentInput.value.trim(),
+        description: currentInput.description.trim(),
+      };
+      setPreconditions([...preconditions, newPrecondition]);
+    }
+
+    setShowTypeChangeConfirm(false);
+    setMultiEdgeInputs({});
   };
 
   const handleRemovePrecondition = (index: number) => {
@@ -114,50 +199,107 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
     }
   };
 
+  const updateMultiEdgeInput = (
+    edgeId: string,
+    field: keyof EdgePreconditionInput,
+    value: string,
+  ) => {
+    setMultiEdgeInputs((prev) => ({
+      ...prev,
+      [edgeId]: {
+        ...prev[edgeId],
+        [field]: value,
+      },
+    }));
+  };
+
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b p-4">
+      <div className="border-b p-2 px-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Edge Properties</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleDeleteEdge}
-            className="text-muted-foreground hover:text-destructive"
-            title="Delete edge"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <h4 className="text-sm font-semibold">Edge Properties</h4>
+          {!isFromStartNode && (
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    title="Delete edge"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                }
+              />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete edge?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete
+                    the edge.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={handleDeleteEdge}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {from} → {to}
-        </p>
       </div>
+
+      <p className="mt-1 text-xs text-muted-foreground p-4 pb-0">
+        {from} → {to}
+      </p>
+
+      {existingType && (
+        <div className="p-4 pt-2">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Edges are locked to:{" "}
+              <span
+                className={`rounded px-1 py-0.5 ${getTypeColor(existingType)}`}
+              >
+                {existingType}
+              </span>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      <Separator />
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="flex flex-col gap-4">
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <Label>Preconditions</Label>
+              <Label>Precondition</Label>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsAddingPrecondition(true)}
+                onClick={() => {
+                  // If there are sibling edges and no existing type, show modal with form
+                  if (!existingType && siblingEdges.length > 0) {
+                    initializeMultiEdgeInputs();
+                    setShowTypeChangeConfirm(true);
+                  } else {
+                    setIsAddingPrecondition(true);
+                  }
+                }}
                 className="h-6 w-6"
                 title="Add precondition"
               >
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-
-            {existingType && (
-              <p className="mb-2 text-xs text-muted-foreground">
-                Type locked to:{" "}
-                <span className={`rounded px-1 py-0.5 ${getTypeColor(existingType)}`}>
-                  {existingType}
-                </span>
-              </p>
-            )}
 
             <div className="flex flex-col gap-2">
               {preconditions.map((p, index) => (
@@ -176,20 +318,14 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
                         </p>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemovePrecondition(index)}
-                      className="ml-2 h-6 w-6 text-muted-foreground hover:text-destructive"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
                   </div>
                 </Card>
               ))}
 
               {preconditions.length === 0 && !isAddingPrecondition && (
-                <p className="text-xs text-muted-foreground">No preconditions</p>
+                <p className="text-xs text-muted-foreground">
+                  No preconditions
+                </p>
               )}
 
               {isAddingPrecondition && (
@@ -201,7 +337,8 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
                         <Select
                           value={newPreconditionType}
                           onValueChange={(value) => {
-                            if (value) setNewPreconditionType(value as PreconditionType);
+                            if (value)
+                              setNewPreconditionType(value as PreconditionType);
                           }}
                         >
                           <SelectTrigger className="h-8 text-xs">
@@ -221,7 +358,9 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
                       <Label className="text-xs">Value</Label>
                       <Textarea
                         value={newPreconditionValue}
-                        onChange={(e) => setNewPreconditionValue(e.target.value)}
+                        onChange={(e) =>
+                          setNewPreconditionValue(e.target.value)
+                        }
                         placeholder="Precondition value..."
                         rows={2}
                         className="text-xs"
@@ -258,6 +397,99 @@ export function EdgePanel({ edgeId, onEdgeDeleted }: EdgePanelProps) {
           </div>
         </div>
       </div>
+
+      {/* Confirmation modal for type change affecting sibling edges */}
+      <AlertDialog
+        open={showTypeChangeConfirm}
+        onOpenChange={setShowTypeChangeConfirm}
+      >
+        <AlertDialogContent
+          className="max-h-[80vh] overflow-hidden flex flex-col"
+          style={{ maxWidth: "36rem" }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>Set preconditions for all edges</AlertDialogTitle>
+            <AlertDialogDescription>
+              All edges from <strong>{from}</strong> will share the same
+              precondition type. Set the value for each edge below.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex space-y-2 border-b pb-4 gap-2">
+            <Label className="text-xs">Precondition Type (shared)</Label>
+            <Select
+              value={newPreconditionType}
+              onValueChange={(value) => {
+                if (value) setNewPreconditionType(value as PreconditionType);
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user_said">user_said</SelectItem>
+                <SelectItem value="agent_decision">agent_decision</SelectItem>
+                <SelectItem value="tool_call">tool_call</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-4 py-4 px-0.5">
+            {allSourceEdges.map((e) => (
+              <Card key={e.id} className="p-3">
+                <p className="text-sm font-medium mb-2">
+                  {e.source} → {e.target}
+                </p>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Value</Label>
+                    <Input
+                      value={multiEdgeInputs[e.id]?.value ?? ""}
+                      onChange={(ev) =>
+                        updateMultiEdgeInput(e.id, "value", ev.target.value)
+                      }
+                      placeholder="Precondition value..."
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Description</Label>
+                    <Textarea
+                      value={multiEdgeInputs[e.id]?.description ?? ""}
+                      onChange={(ev) =>
+                        updateMultiEdgeInput(
+                          e.id,
+                          "description",
+                          ev.target.value,
+                        )
+                      }
+                      placeholder="Description..."
+                      rows={2}
+                      className="text-xs"
+                    />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmTypeChange}
+              disabled={
+                !allSourceEdges.every(
+                  (e) =>
+                    multiEdgeInputs[e.id]?.value.trim() &&
+                    multiEdgeInputs[e.id]?.description.trim(),
+                )
+              }
+            >
+              Add Preconditions
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

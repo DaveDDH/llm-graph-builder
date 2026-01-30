@@ -183,6 +183,8 @@
 
 .react-flow__handle {
   background-color: var(--xy-handle-background-color-default);
+  pointer-events: all;
+  cursor: pointer;
 }
 
 .react-flow__handle.connectionindicator:hover {

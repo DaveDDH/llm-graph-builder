@@ -60,7 +60,7 @@ function AgentNodeComponent({ data, selected, id }: NodeProps) {
       className={containerClassname}
       style={{ width: `${width}px`, minHeight: "220px", maxHeight: "220px" }}
     >
-      <Handles />
+      <Handles nodeId={id} />
       <NodeHeader nodeKind={nodeKind} agent={nodeData.agent} />
       <Separator />
       <NodeBody

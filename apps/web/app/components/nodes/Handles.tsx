@@ -9,6 +9,7 @@ import {
   TopSourceContent,
   TopTargetContent,
 } from "./HandleContent";
+import { useHandleContext } from "./HandleContext";
 
 // Pre-rendered static handle style objects - never recreate
 const handleStyleBase = {
@@ -18,6 +19,7 @@ const handleStyleBase = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  cursor: "pointer",
 } as const;
 
 const topTargetStyle = {
@@ -52,7 +54,23 @@ const rightSourceStyle = {
   top: "50%",
 } as const;
 
-const HandlesComponent = () => {
+interface HandlesProps {
+  nodeId: string;
+}
+
+function HandlesComponent({ nodeId }: HandlesProps) {
+  const { onSourceHandleClick } = useHandleContext();
+
+  const handleSourceClick = (handleId: string) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSourceHandleClick?.(nodeId, handleId, e);
+  };
+
+  // Prevent drag-and-drop connection - only allow click
+  const preventDrag = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <>
       {/* Top handles */}
@@ -69,6 +87,8 @@ const HandlesComponent = () => {
         position={Position.Top}
         id="top-source"
         style={topSourceStyle}
+        onClick={handleSourceClick("top-source")}
+        onMouseDown={preventDrag}
       >
         {TopSourceContent}
       </Handle>
@@ -87,6 +107,8 @@ const HandlesComponent = () => {
         position={Position.Bottom}
         id="bottom-source"
         style={bottomSourceStyle}
+        onClick={handleSourceClick("bottom-source")}
+        onMouseDown={preventDrag}
       >
         {BottomSourceContent}
       </Handle>
@@ -107,12 +129,13 @@ const HandlesComponent = () => {
         position={Position.Right}
         id="right-source"
         style={rightSourceStyle}
+        onClick={handleSourceClick("right-source")}
+        onMouseDown={preventDrag}
       >
         {RightSourceContent}
       </Handle>
     </>
   );
-};
+}
 
-// Never re-render - no props
-export const Handles = memo(HandlesComponent, () => true);
+export const Handles = memo(HandlesComponent);

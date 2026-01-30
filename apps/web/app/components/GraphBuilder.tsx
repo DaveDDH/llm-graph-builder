@@ -21,9 +21,11 @@ import { nanoid } from "nanoid";
 
 import { nodeTypes } from "./nodes";
 import { edgeTypes } from "./edges";
+import { HandleContext } from "./nodes/HandleContext";
 import { Toolbar } from "./panels/Toolbar";
 import { NodePanel } from "./panels/NodePanel";
 import { EdgePanel } from "./panels/EdgePanel";
+import { ConnectionMenu } from "./panels/ConnectionMenu";
 import { GraphSchema, type Agent } from "../schemas/graph.schema";
 import {
   GRAPH_DATA,
@@ -41,6 +43,12 @@ import {
 
 const MIN_DISTANCE = 150;
 const START_NODE_ID = "INITIAL_STEP";
+const DEFAULT_FIRST_NODE_ID = "first_node";
+const DEFAULT_NODE_WIDTH = 180;
+const DEFAULT_NODE_HEIGHT = 220;
+const START_NODE_WIDTH = 100;
+const START_NODE_HEIGHT = 44;
+const NODE_GAP = 100;
 
 // Default start node for blank canvas
 const defaultStartNode: Node<RFNodeData> = {
@@ -56,9 +64,44 @@ const defaultStartNode: Node<RFNodeData> = {
   },
 };
 
+// Default first node connected to start
+const defaultFirstNode: Node<RFNodeData> = {
+  id: DEFAULT_FIRST_NODE_ID,
+  type: "agent",
+  position: {
+    x: defaultStartNode.position.x + START_NODE_WIDTH + NODE_GAP,
+    y: defaultStartNode.position.y + START_NODE_HEIGHT / 2 - DEFAULT_NODE_HEIGHT / 2,
+  },
+  data: {
+    nodeId: DEFAULT_FIRST_NODE_ID,
+    text: "New node",
+    description: "",
+    nodeWidth: DEFAULT_NODE_WIDTH,
+  },
+};
+
+// Default edge from start to first node with user_said "hello"
+const defaultStartEdge: Edge<RFEdgeData> = {
+  id: `${START_NODE_ID}-${DEFAULT_FIRST_NODE_ID}`,
+  source: START_NODE_ID,
+  target: DEFAULT_FIRST_NODE_ID,
+  sourceHandle: "right-source",
+  targetHandle: "left-target",
+  type: "precondition",
+  data: {
+    preconditions: [
+      {
+        type: "user_said",
+        value: "Hello",
+        description: "User greeting",
+      },
+    ],
+  },
+};
+
 // Initialize nodes and edges from graph data
 function createInitialNodes(): Node<RFNodeData>[] {
-  if (!GRAPH_DATA) return [defaultStartNode];
+  if (!GRAPH_DATA) return [defaultStartNode, defaultFirstNode];
   const { graph, nodeWidth } = GRAPH_DATA;
   return graph.nodes.map((n, i) => {
     const baseNode = schemaNodeToRFNode(n, i);
@@ -77,7 +120,7 @@ function createInitialNodes(): Node<RFNodeData>[] {
 }
 
 function createInitialEdges(): Edge<RFEdgeData>[] {
-  if (!GRAPH_DATA) return [];
+  if (!GRAPH_DATA) return [defaultStartEdge];
   const { graph } = GRAPH_DATA;
   return graph.edges.map((e, i) => schemaEdgeToRFEdge(e, i, graph.nodes));
 }
@@ -101,6 +144,13 @@ function GraphBuilderInner() {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [agents] = useState<Agent[]>(GRAPH_DATA?.graph.agents ?? []);
 
+  // Connection menu state
+  const [connectionMenu, setConnectionMenu] = useState<{
+    position: { x: number; y: number };
+    sourceNodeId: string;
+    sourceHandleId: string | null;
+  } | null>(null);
+
   // Set initial viewport to center start node vertically
   useEffect(() => {
     if (!reactFlowWrapper.current) return;
@@ -118,10 +168,137 @@ function GraphBuilderInner() {
 
   const onConnect = useCallback(
     (params: Connection) => {
+      // Prevent connecting to the start node
+      if (params.target === START_NODE_ID) return;
       setEdges((eds) => addEdge({ ...params, type: "precondition" }, eds));
+      setConnectionMenu(null);
     },
     [setEdges],
   );
+
+  // Handle click on source handle to show connection menu
+  const onSourceHandleClick = useCallback(
+    (nodeId: string, handleId: string, event: React.MouseEvent) => {
+      // Start node can only have 1 connection
+      if (nodeId === START_NODE_ID) {
+        const hasConnection = edges.some((e) => e.source === START_NODE_ID);
+        if (hasConnection) {
+          return; // Don't allow more connections from start
+        }
+      }
+
+      const rect = (event.target as HTMLElement).getBoundingClientRect();
+      setConnectionMenu({
+        position: { x: rect.right + 10, y: rect.top },
+        sourceNodeId: nodeId,
+        sourceHandleId: handleId,
+      });
+    },
+    [edges],
+  );
+
+  const handleConnectionMenuSelectNode = useCallback(
+    (targetNodeId: string) => {
+      if (!connectionMenu) return;
+
+      setEdges((eds) =>
+        addEdge(
+          {
+            source: connectionMenu.sourceNodeId,
+            target: targetNodeId,
+            sourceHandle: connectionMenu.sourceHandleId,
+            targetHandle: "left-target",
+            type: "precondition",
+          },
+          eds,
+        ),
+      );
+      setConnectionMenu(null);
+    },
+    [connectionMenu, setEdges],
+  );
+
+  const handleConnectionMenuCreateNode = useCallback(() => {
+    if (!connectionMenu) return;
+
+    const id = `node_${nanoid(8)}`;
+    const NODE_WIDTH = GRAPH_DATA?.nodeWidth ?? 180;
+    const NODE_HEIGHT = 220;
+
+    // Find the source node to position relative to it
+    const sourceNode = nodes.find((n) => n.id === connectionMenu.sourceNodeId);
+    const isStartNode = sourceNode?.type === "start";
+    const sourceNodeWidth = isStartNode ? START_NODE_WIDTH : ((sourceNode?.data as RFNodeData)?.nodeWidth ?? NODE_WIDTH);
+    const sourceNodeHeight = isStartNode ? START_NODE_HEIGHT : NODE_HEIGHT;
+
+    // Position new node based on which handle was clicked
+    let newPosition: { x: number; y: number };
+
+    if (!sourceNode) {
+      const flowPos = screenToFlowPosition(connectionMenu.position);
+      newPosition = { x: flowPos.x, y: flowPos.y };
+    } else if (connectionMenu.sourceHandleId === "top-source") {
+      // NODE_GAP above, horizontally centered
+      newPosition = {
+        x: sourceNode.position.x + sourceNodeWidth / 2 - NODE_WIDTH / 2,
+        y: sourceNode.position.y - NODE_HEIGHT - NODE_GAP,
+      };
+    } else if (connectionMenu.sourceHandleId === "bottom-source") {
+      // NODE_GAP below, horizontally centered
+      newPosition = {
+        x: sourceNode.position.x + sourceNodeWidth / 2 - NODE_WIDTH / 2,
+        y: sourceNode.position.y + sourceNodeHeight + NODE_GAP,
+      };
+    } else {
+      // right-source (default): NODE_GAP to the right, vertically centered
+      newPosition = {
+        x: sourceNode.position.x + sourceNodeWidth + NODE_GAP,
+        y: sourceNode.position.y + sourceNodeHeight / 2 - NODE_HEIGHT / 2,
+      };
+    }
+
+    // Determine target handle based on source handle
+    let targetHandle: string;
+    if (connectionMenu.sourceHandleId === "top-source") {
+      targetHandle = "bottom-target";
+    } else if (connectionMenu.sourceHandleId === "bottom-source") {
+      targetHandle = "top-target";
+    } else {
+      targetHandle = "left-target";
+    }
+
+    const newNode: Node<RFNodeData> = {
+      id,
+      type: "agent",
+      position: newPosition,
+      data: {
+        nodeId: id,
+        text: "New node",
+        description: "",
+        nodeWidth: NODE_WIDTH,
+      },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+    setEdges((eds) =>
+      addEdge(
+        {
+          source: connectionMenu.sourceNodeId,
+          target: id,
+          sourceHandle: connectionMenu.sourceHandleId,
+          targetHandle,
+          type: "precondition",
+        },
+        eds,
+      ),
+    );
+    setConnectionMenu(null);
+    setSelectedNodeId(id);
+  }, [connectionMenu, nodes, screenToFlowPosition, setNodes, setEdges]);
+
+  const handleConnectionMenuClose = useCallback(() => {
+    setConnectionMenu(null);
+  }, []);
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     // Don't select the start node
@@ -138,6 +315,7 @@ function GraphBuilderInner() {
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
+    setConnectionMenu(null);
   }, []);
 
   const getClosestEdge = useCallback(
@@ -148,7 +326,8 @@ function GraphBuilderInner() {
 
       const closestNode = Array.from(nodeLookup.values()).reduce(
         (res: { distance: number; node: typeof internalNode | null }, n) => {
-          if (n.id !== internalNode.id) {
+          // Skip self and start node (start node cannot be a target)
+          if (n.id !== internalNode.id && n.id !== START_NODE_ID) {
             const dx =
               n.internals.positionAbsolute.x -
               internalNode.internals.positionAbsolute.x;
@@ -175,12 +354,17 @@ function GraphBuilderInner() {
         closestNode.node.internals.positionAbsolute.x <
         internalNode.internals.positionAbsolute.x;
 
+      // Determine source and target
+      const source = closeNodeIsSource ? closestNode.node.id : node.id;
+      const target = closeNodeIsSource ? node.id : closestNode.node.id;
+
+      // Prevent start node from being a target
+      if (target === START_NODE_ID) return null;
+
       return {
-        id: closeNodeIsSource
-          ? `${closestNode.node.id}-${node.id}`
-          : `${node.id}-${closestNode.node.id}`,
-        source: closeNodeIsSource ? closestNode.node.id : node.id,
-        target: closeNodeIsSource ? node.id : closestNode.node.id,
+        id: `${source}-${target}`,
+        source,
+        target,
       };
     },
     [store, getInternalNode],
@@ -352,13 +536,16 @@ function GraphBuilderInner() {
   // Combine edges with temp edge for display
   const displayEdges = tempEdge ? [...edges, tempEdge] : edges;
 
+  const handleContextValue = { onSourceHandleClick };
+
   return (
-    <div className="flex h-screen w-screen flex-col items-center">
-      <Toolbar
-        onAddNode={handleAddNode}
-        onImport={handleImport}
-        onExport={handleExport}
-      />
+    <HandleContext.Provider value={handleContextValue}>
+      <div className="flex h-screen w-screen flex-col items-center">
+        <Toolbar
+          onAddNode={handleAddNode}
+          onImport={handleImport}
+          onExport={handleExport}
+        />
 
       <div className="h-screen w-screen relative flex-1 overflow-hidden">
         <main ref={reactFlowWrapper} className="absolute inset-0">
@@ -393,7 +580,6 @@ function GraphBuilderInner() {
             {selectedNodeId && (
               <NodePanel
                 nodeId={selectedNodeId}
-                agents={agents}
                 onNodeDeleted={() => setSelectedNodeId(null)}
               />
             )}
@@ -405,8 +591,24 @@ function GraphBuilderInner() {
             )}
           </aside>
         )}
+
+        {connectionMenu && (
+          <ConnectionMenu
+            position={connectionMenu.position}
+            sourceNodeId={connectionMenu.sourceNodeId}
+            sourceHandleId={connectionMenu.sourceHandleId}
+            nodes={nodes.map((n) => ({
+              id: n.id,
+              text: (n.data as RFNodeData).text,
+            }))}
+            onSelectNode={handleConnectionMenuSelectNode}
+            onCreateNode={handleConnectionMenuCreateNode}
+            onClose={handleConnectionMenuClose}
+          />
+        )}
       </div>
     </div>
+    </HandleContext.Provider>
   );
 }
 
