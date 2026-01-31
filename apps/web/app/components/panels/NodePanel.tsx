@@ -10,6 +10,7 @@ import {
   Wrench,
   Box,
   Cable,
+  SquareTerminal,
 } from "lucide-react";
 import { useNodes, useEdges, useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
@@ -144,35 +145,66 @@ export function NodePanel({
       <div className="border-b p-2 px-4">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold">Node Properties</h4>
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-destructive"
-                  title="Delete node"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              }
-            />
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete node?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the
-                  node and remove all its connections.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" onClick={handleDelete}>
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="flex items-center">
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    className="text-muted-foreground"
+                    variant="ghost"
+                    size="icon"
+                    title="View prompt"
+                  >
+                    <SquareTerminal />
+                  </Button>
+                }
+              />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Node prompt</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Lorem ipsum dolor
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Close</AlertDialogCancel>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    title="Delete node"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                }
+              />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete node?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete
+                    the node and remove all its connections.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={handleDelete}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </div>
 
@@ -245,55 +277,69 @@ export function NodePanel({
                 <ArrowLeft className="h-3 w-3 mr-1" />
               </div>
               <div className="flex flex-col ml-1">
-                {incomingEdges.map((edge, index) => (
-                  <div key={edge.id}>
-                    <div className="w-full flex justify-between items-center text-xs gap-1 py-1">
-                      <div className="flex items-center">
-                        {getEdgeTypeIcon(edge)}
-                        <span className="ml-1 text-[11px] truncate">
-                          {edge.source}
-                        </span>
-                      </div>
+                {incomingEdges.map((edge, index) => {
+                  const value =
+                    edge.data?.preconditions?.[0]?.value;
+                  return (
+                    <div key={edge.id}>
+                      <div className="w-full flex justify-between items-center text-xs gap-1 py-1">
+                        <div className="flex flex-col">
+                          <div className="flex items-center">
+                            {getEdgeTypeIcon(edge)}
+                            <span className="ml-1 text-[11px] truncate">
+                              {edge.source}
+                            </span>
+                          </div>
+                          {value && (
+                            <div className="flex w-full gap-1 mt-1">
+                              <div className="ml-0.5 w-[2px] bg-zinc-200 self-stretch"></div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {value}
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
-                      <div className="flex items-center">
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onSelectNode?.(edge.source)}
-                              >
-                                <Box />
-                              </Button>
-                            }
-                          ></TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-sm">
-                            Go to node
-                          </TooltipContent>
-                        </Tooltip>
+                        <div className="flex items-center">
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onSelectNode?.(edge.source)}
+                                >
+                                  <Box />
+                                </Button>
+                              }
+                            ></TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-sm">
+                              Go to node
+                            </TooltipContent>
+                          </Tooltip>
 
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onSelectEdge?.(edge.id)}
-                              >
-                                <Cable />
-                              </Button>
-                            }
-                          ></TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-sm">
-                            Go to edge
-                          </TooltipContent>
-                        </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onSelectEdge?.(edge.id)}
+                                >
+                                  <Cable />
+                                </Button>
+                              }
+                            ></TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-sm">
+                              Go to edge
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
+                      {index < incomingEdges.length - 1 && <Separator />}
                     </div>
-                    {index < incomingEdges.length - 1 && <Separator />}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -305,55 +351,69 @@ export function NodePanel({
                 <ArrowRight className="h-3 w-3 mr-1" />
               </div>
               <div className="flex flex-col ml-1">
-                {outgoingEdges.map((edge, index) => (
-                  <div key={edge.id}>
-                    <div className="w-full flex justify-between items-center text-xs gap-1 py-1">
-                      <div className="flex items-center">
-                        {getEdgeTypeIcon(edge)}
-                        <span className="ml-1 text-[11px] truncate">
-                          {edge.target}
-                        </span>
-                      </div>
+                {outgoingEdges.map((edge, index) => {
+                  const value =
+                    edge.data?.preconditions?.[0]?.value;
+                  return (
+                    <div key={edge.id}>
+                      <div className="w-full flex justify-between items-center text-xs gap-1 py-1">
+                        <div className="flex flex-col">
+                          <div className="flex items-center">
+                            {getEdgeTypeIcon(edge)}
+                            <span className="ml-1 text-[11px] truncate">
+                              {edge.target}
+                            </span>
+                          </div>
+                          {value && (
+                            <div className="flex w-full gap-1 mt-1">
+                              <div className="ml-0.5 w-[2px] bg-zinc-200 self-stretch"></div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {value}
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
-                      <div className="flex items-center">
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onSelectNode?.(edge.target)}
-                              >
-                                <Box />
-                              </Button>
-                            }
-                          ></TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-sm">
-                            Go to node
-                          </TooltipContent>
-                        </Tooltip>
+                        <div className="flex items-center">
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onSelectNode?.(edge.target)}
+                                >
+                                  <Box />
+                                </Button>
+                              }
+                            ></TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-sm">
+                              Go to node
+                            </TooltipContent>
+                          </Tooltip>
 
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onSelectEdge?.(edge.id)}
-                              >
-                                <Cable />
-                              </Button>
-                            }
-                          ></TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-sm">
-                            Go to edge
-                          </TooltipContent>
-                        </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onSelectEdge?.(edge.id)}
+                                >
+                                  <Cable />
+                                </Button>
+                              }
+                            ></TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-sm">
+                              Go to edge
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
+                      {index < outgoingEdges.length - 1 && <Separator />}
                     </div>
-                    {index < outgoingEdges.length - 1 && <Separator />}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
