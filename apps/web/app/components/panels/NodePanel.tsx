@@ -81,12 +81,6 @@ export function NodePanel({
     );
   };
 
-  const updateNodeType = (newType: string) => {
-    setNodes((nds) =>
-      nds.map((n) => (n.id === nodeId ? { ...n, type: newType } : n)),
-    );
-  };
-
   const handleIdBlur = () => {
     if (id !== nodeId && id.trim()) {
       const newId = id.trim();
@@ -213,17 +207,6 @@ export function NodePanel({
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Checkbox
-                id="isDecisionNode"
-                checked={node.type === "agent_decision"}
-                onCheckedChange={(checked) =>
-                  updateNodeType(checked ? "agent_decision" : "agent")
-                }
-              />
-              <Label htmlFor="isDecisionNode">Is this a decision node?</Label>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Checkbox
                 id="nextNodeIsUser"
                 checked={nodeData.nextNodeIsUser ?? false}
                 onCheckedChange={(checked) =>
@@ -254,7 +237,7 @@ export function NodePanel({
                 Incoming
                 <ArrowLeft className="h-3 w-3 mr-1" />
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 ml-1">
                 {incomingEdges.map((edge) => (
                   <div key={edge.id} className="flex items-center text-xs">
                     <span className="text-muted-foreground w-[50px]">From:</span>
@@ -279,7 +262,7 @@ export function NodePanel({
                 Outgoing
                 <ArrowRight className="h-3 w-3 mr-1" />
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 ml-1">
                 {outgoingEdges.map((edge) => (
                   <div key={edge.id} className="flex items-center text-xs">
                     <span className="text-muted-foreground w-[50px]">To:</span>
