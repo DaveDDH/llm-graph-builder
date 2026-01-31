@@ -131,7 +131,7 @@ const initialEdges = createInitialEdges();
 function GraphBuilderInner() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const store = useStoreApi();
-  const { screenToFlowPosition, fitView, getInternalNode, setViewport } =
+  const { screenToFlowPosition, fitView, getInternalNode, setViewport, getViewport } =
     useReactFlow();
 
   // React Flow as source of truth
@@ -582,6 +582,47 @@ function GraphBuilderInner() {
                 nodeId={selectedNodeId}
                 onNodeDeleted={() => setSelectedNodeId(null)}
                 onNodeIdChanged={(newId) => setSelectedNodeId(newId)}
+                onSelectEdge={(edgeId) => {
+                  // Update React Flow selection state
+                  setNodes((nds) =>
+                    nds.map((n) => ({ ...n, selected: false }))
+                  );
+                  setEdges((eds) =>
+                    eds.map((e) => ({ ...e, selected: e.id === edgeId }))
+                  );
+                  setSelectedEdgeId(edgeId);
+                  setSelectedNodeId(null);
+                }}
+                onSelectNode={(targetNodeId) => {
+                  const node = nodes.find((n) => n.id === targetNodeId);
+                  if (node && reactFlowWrapper.current) {
+                    const nodeData = node.data as RFNodeData;
+                    const nodeWidth = nodeData.nodeWidth ?? 180;
+                    const nodeHeight = node.type === "start" ? START_NODE_HEIGHT : DEFAULT_NODE_HEIGHT;
+                    const { zoom } = getViewport();
+                    const { width, height } = reactFlowWrapper.current.getBoundingClientRect();
+
+                    const nodeCenterX = node.position.x + nodeWidth / 2;
+                    const nodeCenterY = node.position.y + nodeHeight / 2;
+
+                    setViewport(
+                      {
+                        x: width / 2 - nodeCenterX * zoom,
+                        y: height / 2 - nodeCenterY * zoom,
+                        zoom,
+                      },
+                      { duration: 300 }
+                    );
+                  }
+                  // Update React Flow selection state
+                  setNodes((nds) =>
+                    nds.map((n) => ({ ...n, selected: n.id === targetNodeId }))
+                  );
+                  setEdges((eds) =>
+                    eds.map((e) => ({ ...e, selected: false }))
+                  );
+                  setSelectedNodeId(targetNodeId);
+                }}
               />
             )}
             {selectedEdgeId && (
@@ -589,6 +630,35 @@ function GraphBuilderInner() {
                 edgeId={selectedEdgeId}
                 onEdgeDeleted={() => setSelectedEdgeId(null)}
                 onSelectNode={(nodeId) => {
+                  const node = nodes.find((n) => n.id === nodeId);
+                  if (node && reactFlowWrapper.current) {
+                    const nodeData = node.data as RFNodeData;
+                    const nodeWidth = nodeData.nodeWidth ?? 180;
+                    const nodeHeight = node.type === "start" ? START_NODE_HEIGHT : DEFAULT_NODE_HEIGHT;
+                    const { zoom } = getViewport();
+                    const { width, height } = reactFlowWrapper.current.getBoundingClientRect();
+
+                    // Calculate node center
+                    const nodeCenterX = node.position.x + nodeWidth / 2;
+                    const nodeCenterY = node.position.y + nodeHeight / 2;
+
+                    // Calculate viewport position to center the node
+                    setViewport(
+                      {
+                        x: width / 2 - nodeCenterX * zoom,
+                        y: height / 2 - nodeCenterY * zoom,
+                        zoom,
+                      },
+                      { duration: 300 }
+                    );
+                  }
+                  // Update React Flow selection state
+                  setNodes((nds) =>
+                    nds.map((n) => ({ ...n, selected: n.id === nodeId }))
+                  );
+                  setEdges((eds) =>
+                    eds.map((e) => ({ ...e, selected: false }))
+                  );
                   setSelectedNodeId(nodeId);
                   setSelectedEdgeId(null);
                 }}

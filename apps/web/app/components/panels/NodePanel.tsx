@@ -1,13 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
-import { useNodes, useReactFlow } from "@xyflow/react";
+import {
+  Trash2,
+  ArrowRight,
+  ArrowLeft,
+  MessageCircle,
+  Brain,
+  Wrench,
+} from "lucide-react";
+import { useNodes, useEdges, useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,22 +27,32 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { RFNodeData } from "../../utils/graphTransformers";
-import type { Node } from "@xyflow/react";
+import type { RFNodeData, RFEdgeData } from "../../utils/graphTransformers";
+import type { Node, Edge } from "@xyflow/react";
+import type { PreconditionType } from "../../schemas/graph.schema";
 
 interface NodePanelProps {
   nodeId: string;
   onNodeDeleted?: () => void;
   onNodeIdChanged?: (newId: string) => void;
+  onSelectEdge?: (edgeId: string) => void;
+  onSelectNode?: (nodeId: string) => void;
 }
 
 export function NodePanel({
   nodeId,
   onNodeDeleted,
   onNodeIdChanged,
+  onSelectEdge,
+  onSelectNode,
 }: NodePanelProps) {
   const nodes = useNodes<Node<RFNodeData>>();
+  const edges = useEdges<Edge<RFEdgeData>>();
   const { setNodes, setEdges } = useReactFlow();
+
+  // Get incoming and outgoing edges
+  const incomingEdges = edges.filter((e) => e.target === nodeId);
+  const outgoingEdges = edges.filter((e) => e.source === nodeId);
 
   const node = nodes.find((n) => n.id === nodeId);
   const nodeData = node?.data;
@@ -101,6 +119,25 @@ export function NodePanel({
     onNodeDeleted?.();
   };
 
+  const getEdgeTypeIcon = (edge: Edge<RFEdgeData>) => {
+    const preconditionType = edge.data?.preconditions?.[0]?.type as
+      | PreconditionType
+      | undefined;
+    if (!preconditionType) return null;
+
+    const iconClass = "h-3 w-3 mr-1";
+    switch (preconditionType) {
+      case "user_said":
+        return <MessageCircle className={`${iconClass} text-green-700`} />;
+      case "agent_decision":
+        return <Brain className={`${iconClass} text-purple-700`} />;
+      case "tool_call":
+        return <Wrench className={`${iconClass} text-orange-700`} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="border-b p-2 px-4">
@@ -138,8 +175,8 @@ export function NodePanel({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-col gap-4">
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-4 p-4">
           <div className="space-y-2">
             <Label htmlFor="id">ID</Label>
             <Input
@@ -200,6 +237,66 @@ export function NodePanel({
               </Label>
             </div>
           </div>
+        </div>
+
+        <Separator />
+
+        <div className="p-4">
+          <Label className="text-sm font-semibold">Connections</Label>
+
+          {incomingEdges.length === 0 && outgoingEdges.length === 0 && (
+            <p className="text-xs text-muted-foreground mt-2">No connections</p>
+          )}
+
+          {incomingEdges.length > 0 && (
+            <div className="mt-3">
+              <div className="flex gap-1 items-center text-xs mb-1">
+                Incoming
+                <ArrowLeft className="h-3 w-3 mr-1" />
+              </div>
+              <div className="flex flex-col gap-1">
+                {incomingEdges.map((edge) => (
+                  <div key={edge.id} className="flex items-center text-xs">
+                    <span className="text-muted-foreground w-[50px]">From:</span>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 px-1 text-xs font-medium"
+                      onClick={() => onSelectNode?.(edge.source)}
+                    >
+                      {getEdgeTypeIcon(edge)}
+                      {edge.source}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {outgoingEdges.length > 0 && (
+            <div className="mt-3">
+              <div className="flex gap-1 items-center text-xs mb-1">
+                Outgoing
+                <ArrowRight className="h-3 w-3 mr-1" />
+              </div>
+              <div className="flex flex-col gap-1">
+                {outgoingEdges.map((edge) => (
+                  <div key={edge.id} className="flex items-center text-xs">
+                    <span className="text-muted-foreground w-[50px]">To:</span>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 px-1 text-xs font-medium"
+                      onClick={() => onSelectNode?.(edge.target)}
+                    >
+                      {getEdgeTypeIcon(edge)}
+                      {edge.target}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
