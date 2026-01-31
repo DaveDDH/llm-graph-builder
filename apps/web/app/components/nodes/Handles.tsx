@@ -2,12 +2,18 @@ import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import {
   BottomSourceContent,
+  BottomSourceContentRed,
   BottomTargetContent,
+  BottomTargetContentRed,
   HANDLE_SIZE,
   LeftTargetContent,
+  LeftTargetContentRed,
   RightSourceContent,
+  RightSourceContentRed,
   TopSourceContent,
+  TopSourceContentRed,
   TopTargetContent,
+  TopTargetContentRed,
 } from "./HandleContent";
 import { useHandleContext } from "./HandleContext";
 
@@ -56,9 +62,10 @@ const rightSourceStyle = {
 
 interface HandlesProps {
   nodeId: string;
+  nextNodeIsUser?: boolean;
 }
 
-function HandlesComponent({ nodeId }: HandlesProps) {
+function HandlesComponent({ nodeId, nextNodeIsUser }: HandlesProps) {
   const { onSourceHandleClick } = useHandleContext();
 
   const handleSourceClick = (handleId: string) => (e: React.MouseEvent) => {
@@ -80,7 +87,7 @@ function HandlesComponent({ nodeId }: HandlesProps) {
         id="top-target"
         style={topTargetStyle}
       >
-        {TopTargetContent}
+        {nextNodeIsUser ? TopTargetContentRed : TopTargetContent}
       </Handle>
       <Handle
         type="source"
@@ -90,7 +97,7 @@ function HandlesComponent({ nodeId }: HandlesProps) {
         onClick={handleSourceClick("top-source")}
         onMouseDown={preventDrag}
       >
-        {TopSourceContent}
+        {nextNodeIsUser ? TopSourceContentRed : TopSourceContent}
       </Handle>
 
       {/* Bottom handles */}
@@ -100,7 +107,7 @@ function HandlesComponent({ nodeId }: HandlesProps) {
         id="bottom-target"
         style={bottomTargetStyle}
       >
-        {BottomTargetContent}
+        {nextNodeIsUser ? BottomTargetContentRed : BottomTargetContent}
       </Handle>
       <Handle
         type="source"
@@ -110,7 +117,7 @@ function HandlesComponent({ nodeId }: HandlesProps) {
         onClick={handleSourceClick("bottom-source")}
         onMouseDown={preventDrag}
       >
-        {BottomSourceContent}
+        {nextNodeIsUser ? BottomSourceContentRed : BottomSourceContent}
       </Handle>
 
       {/* Left handles */}
@@ -120,7 +127,7 @@ function HandlesComponent({ nodeId }: HandlesProps) {
         id="left-target"
         style={leftTargetStyle}
       >
-        {LeftTargetContent}
+        {nextNodeIsUser ? LeftTargetContentRed : LeftTargetContent}
       </Handle>
 
       {/* Right handles */}
@@ -132,7 +139,7 @@ function HandlesComponent({ nodeId }: HandlesProps) {
         onClick={handleSourceClick("right-source")}
         onMouseDown={preventDrag}
       >
-        {RightSourceContent}
+        {nextNodeIsUser ? RightSourceContentRed : RightSourceContent}
       </Handle>
     </>
   );
