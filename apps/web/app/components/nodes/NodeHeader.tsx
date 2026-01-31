@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Bot, MessageSquare, Brain, Wrench } from "lucide-react";
+import { Bot, MessageSquare, Brain, Wrench, Send } from "lucide-react";
 
 export type NodeKind = "agent" | "user_routing" | "agent_decision" | "tool_call";
 
@@ -33,7 +33,7 @@ const NodeHeaderComponent = ({ nodeKind, agent }: NodeHeaderProps) => {
     default:
       headerLabel = "Agent";
       colorClass = "text-muted-foreground";
-      headerIcon = <Bot className={`h-4 w-4 ${colorClass}`} />;
+      headerIcon = <Send className={`h-4 w-4 ${colorClass}`} />;
   }
 
   return (
@@ -42,14 +42,6 @@ const NodeHeaderComponent = ({ nodeKind, agent }: NodeHeaderProps) => {
       <span className={`text-xs font-medium uppercase ${colorClass}`}>
         {headerLabel}
       </span>
-      {agent && (
-        <Badge
-          variant="outline"
-          className="ml-auto border-secondary bg-white uppercase"
-        >
-          {agent}
-        </Badge>
-      )}
     </div>
   );
 };

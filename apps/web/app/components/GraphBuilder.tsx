@@ -75,7 +75,7 @@ const defaultFirstNode: Node<RFNodeData> = {
   data: {
     nodeId: DEFAULT_FIRST_NODE_ID,
     text: "New node",
-    description: "",
+    description: "Node description",
     nodeWidth: DEFAULT_NODE_WIDTH,
   },
 };
@@ -274,7 +274,7 @@ function GraphBuilderInner() {
       data: {
         nodeId: id,
         text: "New node",
-        description: "",
+        description: "Node description",
         nodeWidth: NODE_WIDTH,
       },
     };
@@ -581,6 +581,7 @@ function GraphBuilderInner() {
               <NodePanel
                 nodeId={selectedNodeId}
                 onNodeDeleted={() => setSelectedNodeId(null)}
+                onNodeIdChanged={(newId) => setSelectedNodeId(newId)}
               />
             )}
             {selectedEdgeId && (

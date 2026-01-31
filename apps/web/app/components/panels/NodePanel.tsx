@@ -25,9 +25,14 @@ import type { Node } from "@xyflow/react";
 interface NodePanelProps {
   nodeId: string;
   onNodeDeleted?: () => void;
+  onNodeIdChanged?: (newId: string) => void;
 }
 
-export function NodePanel({ nodeId, onNodeDeleted }: NodePanelProps) {
+export function NodePanel({
+  nodeId,
+  onNodeDeleted,
+  onNodeIdChanged,
+}: NodePanelProps) {
   const nodes = useNodes<Node<RFNodeData>>();
   const { setNodes, setEdges } = useReactFlow();
 
@@ -53,47 +58,46 @@ export function NodePanel({ nodeId, onNodeDeleted }: NodePanelProps) {
   const updateNodeData = (updates: Partial<RFNodeData>) => {
     setNodes((nds) =>
       nds.map((n) =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, ...updates } }
-          : n
-      )
+        n.id === nodeId ? { ...n, data: { ...n.data, ...updates } } : n,
+      ),
     );
   };
 
   const updateNodeType = (newType: string) => {
     setNodes((nds) =>
-      nds.map((n) =>
-        n.id === nodeId
-          ? { ...n, type: newType }
-          : n
-      )
+      nds.map((n) => (n.id === nodeId ? { ...n, type: newType } : n)),
     );
   };
 
   const handleIdBlur = () => {
     if (id !== nodeId && id.trim()) {
+      const newId = id.trim();
       // Rename node: update node id and all edges referencing it
       setNodes((nds) =>
         nds.map((n) =>
           n.id === nodeId
-            ? { ...n, id: id.trim(), data: { ...n.data, nodeId: id.trim() } }
-            : n
-        )
+            ? { ...n, id: newId, data: { ...n.data, nodeId: newId } }
+            : n,
+        ),
       );
       setEdges((eds) =>
         eds.map((e) => ({
           ...e,
-          id: e.id.replace(nodeId, id.trim()),
-          source: e.source === nodeId ? id.trim() : e.source,
-          target: e.target === nodeId ? id.trim() : e.target,
-        }))
+          id: e.id.replace(nodeId, newId),
+          source: e.source === nodeId ? newId : e.source,
+          target: e.target === nodeId ? newId : e.target,
+        })),
       );
+      // Notify parent of the ID change
+      onNodeIdChanged?.(newId);
     }
   };
 
   const handleDelete = () => {
     setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    setEdges((eds) =>
+      eds.filter((e) => e.source !== nodeId && e.target !== nodeId),
+    );
     onNodeDeleted?.();
   };
 
@@ -119,7 +123,8 @@ export function NodePanel({ nodeId, onNodeDeleted }: NodePanelProps) {
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete node?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the node and remove all its connections.
+                  This action cannot be undone. This will permanently delete the
+                  node and remove all its connections.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -147,17 +152,6 @@ export function NodePanel({ nodeId, onNodeDeleted }: NodePanelProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="text">Text</Label>
-            <Textarea
-              id="text"
-              value={nodeData.text}
-              onChange={(e) => updateNodeData({ text: e.target.value })}
-              rows={3}
-              placeholder="Node text..."
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
@@ -165,6 +159,17 @@ export function NodePanel({ nodeId, onNodeDeleted }: NodePanelProps) {
               onChange={(e) => updateNodeData({ description: e.target.value })}
               rows={2}
               placeholder="Node description..."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="text">Text</Label>
+            <Textarea
+              id="text"
+              value={nodeData.text}
+              onChange={(e) => updateNodeData({ text: e.target.value })}
+              rows={3}
+              placeholder="Node text..."
             />
           </div>
 
@@ -185,10 +190,14 @@ export function NodePanel({ nodeId, onNodeDeleted }: NodePanelProps) {
                 id="nextNodeIsUser"
                 checked={nodeData.nextNodeIsUser ?? false}
                 onCheckedChange={(checked) =>
-                  updateNodeData({ nextNodeIsUser: checked === true || undefined })
+                  updateNodeData({
+                    nextNodeIsUser: checked === true || undefined,
+                  })
                 }
               />
-              <Label htmlFor="nextNodeIsUser">Next node expects user input</Label>
+              <Label htmlFor="nextNodeIsUser">
+                Next node expects user input
+              </Label>
             </div>
           </div>
         </div>
