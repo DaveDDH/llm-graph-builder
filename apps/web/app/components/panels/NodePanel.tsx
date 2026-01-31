@@ -8,6 +8,8 @@ import {
   MessageCircle,
   Brain,
   Wrench,
+  Box,
+  Cable,
 } from "lucide-react";
 import { useNodes, useEdges, useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,11 @@ import {
 import type { RFNodeData, RFEdgeData } from "../../utils/graphTransformers";
 import type { Node, Edge } from "@xyflow/react";
 import type { PreconditionType } from "../../schemas/graph.schema";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface NodePanelProps {
   nodeId: string;
@@ -239,17 +246,52 @@ export function NodePanel({
               </div>
               <div className="flex flex-col gap-1 ml-1">
                 {incomingEdges.map((edge) => (
-                  <div key={edge.id} className="flex items-center text-xs">
-                    <span className="text-muted-foreground w-[50px]">From:</span>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="h-auto p-0 px-1 text-xs font-medium"
-                      onClick={() => onSelectNode?.(edge.source)}
-                    >
+                  <div
+                    key={edge.id}
+                    className="flex items-center text-xs gap-1"
+                  >
+                    <div className="flex items-center">
+                      <span className="text-muted-foreground w-[45px]">
+                        From:
+                      </span>
+
                       {getEdgeTypeIcon(edge)}
-                      {edge.source}
-                    </Button>
+                      <span className="ml-1 text-[11px]">{edge.source}</span>
+                    </div>
+
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSelectNode?.(edge.source)}
+                          >
+                            <Box />
+                          </Button>
+                        }
+                      ></TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-sm">
+                        Go to node
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSelectEdge?.(edge.source)}
+                          >
+                            <Cable />
+                          </Button>
+                        }
+                      ></TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-sm">
+                        Go to edge
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 ))}
               </div>
