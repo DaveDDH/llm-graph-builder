@@ -11,6 +11,7 @@ import {
   Box,
   Cable,
   SquareTerminal,
+  Send,
 } from "lucide-react";
 import { useNodes, useEdges, useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
@@ -122,12 +123,14 @@ export function NodePanel({
   };
 
   const getEdgeTypeIcon = (edge: Edge<RFEdgeData>) => {
+    const iconClass = "h-3 w-3 mr-1";
+
     const preconditionType = edge.data?.preconditions?.[0]?.type as
       | PreconditionType
       | undefined;
-    if (!preconditionType) return null;
+    if (!preconditionType)
+      return <Send className={`${iconClass} text-green-700`} />;
 
-    const iconClass = "h-3 w-3 mr-1";
     switch (preconditionType) {
       case "user_said":
         return <MessageCircle className={`${iconClass} text-green-700`} />;
@@ -276,23 +279,22 @@ export function NodePanel({
                 Incoming
                 <ArrowLeft className="h-3 w-3 mr-1" />
               </div>
-              <div className="flex flex-col ml-1">
-                {incomingEdges.map((edge, index) => {
-                  const value =
-                    edge.data?.preconditions?.[0]?.value;
+              <div className="flex flex-col ml-1 gap-1">
+                {incomingEdges.map((edge) => {
+                  const value = edge.data?.preconditions?.[0]?.value;
                   return (
                     <div key={edge.id}>
                       <div className="w-full flex justify-between items-center text-xs gap-1 py-1">
                         <div className="flex flex-col">
                           <div className="flex items-center">
                             {getEdgeTypeIcon(edge)}
-                            <span className="ml-1 text-[11px] truncate">
+                            <span className="ml-0.5 text-[11px] truncate">
                               {edge.source}
                             </span>
                           </div>
                           {value && (
-                            <div className="flex w-full gap-1 mt-1">
-                              <div className="ml-0.5 w-[2px] bg-zinc-200 self-stretch"></div>
+                            <div className="flex w-full gap-3 mt-1">
+                              <div className="shrink-0 ml-1 w-[2px] bg-zinc-200 self-stretch"></div>
                               <div className="text-[10px] text-muted-foreground">
                                 {value}
                               </div>
@@ -336,7 +338,6 @@ export function NodePanel({
                           </Tooltip>
                         </div>
                       </div>
-                      {index < incomingEdges.length - 1 && <Separator />}
                     </div>
                   );
                 })}
@@ -350,23 +351,22 @@ export function NodePanel({
                 Outgoing
                 <ArrowRight className="h-3 w-3 mr-1" />
               </div>
-              <div className="flex flex-col ml-1">
-                {outgoingEdges.map((edge, index) => {
-                  const value =
-                    edge.data?.preconditions?.[0]?.value;
+              <div className="flex flex-col ml-1 gap-1">
+                {outgoingEdges.map((edge) => {
+                  const value = edge.data?.preconditions?.[0]?.value;
                   return (
                     <div key={edge.id}>
                       <div className="w-full flex justify-between items-center text-xs gap-1 py-1">
                         <div className="flex flex-col">
                           <div className="flex items-center">
                             {getEdgeTypeIcon(edge)}
-                            <span className="ml-1 text-[11px] truncate">
+                            <span className="ml-0.5 text-[11px] truncate">
                               {edge.target}
                             </span>
                           </div>
                           {value && (
-                            <div className="flex w-full gap-1 mt-1">
-                              <div className="ml-0.5 w-[2px] bg-zinc-200 self-stretch"></div>
+                            <div className="flex w-full gap-3 mt-1">
+                              <div className="shrink-0 ml-1 w-[2px] bg-zinc-200 self-stretch"></div>
                               <div className="text-[10px] text-muted-foreground">
                                 {value}
                               </div>
@@ -410,7 +410,6 @@ export function NodePanel({
                           </Tooltip>
                         </div>
                       </div>
-                      {index < outgoingEdges.length - 1 && <Separator />}
                     </div>
                   );
                 })}
