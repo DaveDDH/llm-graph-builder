@@ -244,54 +244,54 @@ export function NodePanel({
                 Incoming
                 <ArrowLeft className="h-3 w-3 mr-1" />
               </div>
-              <div className="flex flex-col gap-1 ml-1">
-                {incomingEdges.map((edge) => (
-                  <div
-                    key={edge.id}
-                    className="w-full flex  justify-between items-center text-xs gap-1"
-                  >
-                    <div className="flex items-center">
-                      {getEdgeTypeIcon(edge)}
-                      <span className="ml-1 text-[11px] truncate">
-                        {edge.source}
-                      </span>
-                    </div>
+              <div className="flex flex-col ml-1">
+                {incomingEdges.map((edge, index) => (
+                  <div key={edge.id}>
+                    <div className="w-full flex justify-between items-center text-xs gap-1 py-1">
+                      <div className="flex items-center">
+                        {getEdgeTypeIcon(edge)}
+                        <span className="ml-1 text-[11px] truncate">
+                          {edge.source}
+                        </span>
+                      </div>
 
-                    <div className="flex items-center">
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onSelectNode?.(edge.source)}
-                            >
-                              <Box />
-                            </Button>
-                          }
-                        ></TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-sm">
-                          Go to node
-                        </TooltipContent>
-                      </Tooltip>
+                      <div className="flex items-center">
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onSelectNode?.(edge.source)}
+                              >
+                                <Box />
+                              </Button>
+                            }
+                          ></TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            Go to node
+                          </TooltipContent>
+                        </Tooltip>
 
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onSelectEdge?.(edge.id)}
-                            >
-                              <Cable />
-                            </Button>
-                          }
-                        ></TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-sm">
-                          Go to edge
-                        </TooltipContent>
-                      </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onSelectEdge?.(edge.id)}
+                              >
+                                <Cable />
+                              </Button>
+                            }
+                          ></TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            Go to edge
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                     </div>
+                    {index < incomingEdges.length - 1 && <Separator />}
                   </div>
                 ))}
               </div>
@@ -304,54 +304,54 @@ export function NodePanel({
                 Outgoing
                 <ArrowRight className="h-3 w-3 mr-1" />
               </div>
-              <div className="flex flex-col gap-1 ml-1">
-                {outgoingEdges.map((edge) => (
-                  <div
-                    key={edge.id}
-                    className="w-full flex justify-between items-center text-xs gap-1"
-                  >
-                    <div className="flex items-center">
-                      {getEdgeTypeIcon(edge)}
-                      <span className="ml-1 text-[11px] truncate">
-                        {edge.target}
-                      </span>
-                    </div>
+              <div className="flex flex-col ml-1">
+                {outgoingEdges.map((edge, index) => (
+                  <div key={edge.id}>
+                    <div className="w-full flex justify-between items-center text-xs gap-1 py-1">
+                      <div className="flex items-center">
+                        {getEdgeTypeIcon(edge)}
+                        <span className="ml-1 text-[11px] truncate">
+                          {edge.target}
+                        </span>
+                      </div>
 
-                    <div className="flex items-center">
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onSelectNode?.(edge.target)}
-                            >
-                              <Box />
-                            </Button>
-                          }
-                        ></TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-sm">
-                          Go to node
-                        </TooltipContent>
-                      </Tooltip>
+                      <div className="flex items-center">
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onSelectNode?.(edge.target)}
+                              >
+                                <Box />
+                              </Button>
+                            }
+                          ></TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            Go to node
+                          </TooltipContent>
+                        </Tooltip>
 
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onSelectEdge?.(edge.id)}
-                            >
-                              <Cable />
-                            </Button>
-                          }
-                        ></TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-sm">
-                          Go to edge
-                        </TooltipContent>
-                      </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onSelectEdge?.(edge.id)}
+                              >
+                                <Cable />
+                              </Button>
+                            }
+                          ></TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            Go to edge
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                     </div>
+                    {index < outgoingEdges.length - 1 && <Separator />}
                   </div>
                 ))}
               </div>
