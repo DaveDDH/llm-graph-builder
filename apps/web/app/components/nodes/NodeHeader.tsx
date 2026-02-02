@@ -1,15 +1,19 @@
 import { memo } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Bot, MessageSquare, Brain, Wrench, Send } from "lucide-react";
+import { MessageSquare, Brain, Wrench, Send, Shrink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-export type NodeKind = "agent" | "user_routing" | "agent_decision" | "tool_call";
+export type NodeKind =
+  | "agent"
+  | "user_routing"
+  | "agent_decision"
+  | "tool_call";
 
 interface NodeHeaderProps {
   nodeKind: NodeKind;
   agent?: string;
 }
 
-const NodeHeaderComponent = ({ nodeKind, agent }: NodeHeaderProps) => {
+const NodeHeaderComponent = ({ nodeKind }: NodeHeaderProps) => {
   let headerLabel: string;
   let headerIcon: React.ReactNode;
   let colorClass: string;
@@ -37,15 +41,26 @@ const NodeHeaderComponent = ({ nodeKind, agent }: NodeHeaderProps) => {
   }
 
   return (
-    <div className="flex items-center gap-2 px-4 py-3">
-      {headerIcon}
-      <span className={`text-xs font-medium uppercase ${colorClass}`}>
-        {headerLabel}
-      </span>
+    <div className="flex justify-between items-center">
+      <div className="flex items-center gap-2 px-4 py-3">
+        {headerIcon}
+        <span className={`text-xs font-medium uppercase ${colorClass}`}>
+          {headerLabel}
+        </span>
+      </div>
+
+      <Button
+        variant="ghost"
+        size="icon-lg"
+        className="h-6 w-6 mr-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <Shrink className="h-4 w-4" />
+      </Button>
     </div>
   );
 };
 
-export const NodeHeader = memo(NodeHeaderComponent, (prev, next) =>
-  prev.nodeKind === next.nodeKind && prev.agent === next.agent
+export const NodeHeader = memo(
+  NodeHeaderComponent,
+  (prev, next) => prev.nodeKind === next.nodeKind && prev.agent === next.agent,
 );
